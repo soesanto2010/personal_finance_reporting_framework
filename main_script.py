@@ -65,6 +65,8 @@ def main(path,filename,Start_Date,End_Date):
 
     print("run completed")
 
+    print("git_test")
+
 if __name__ == "__main__":
     main(
         path=path,
