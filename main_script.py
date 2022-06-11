@@ -64,7 +64,6 @@ def main(path,filename,Start_Date,End_Date):
     generate_csv_outputs(datasets)
 
     print("run completed")
-    print('Git_test')
 
 if __name__ == "__main__":
     main(
