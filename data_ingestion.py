@@ -30,7 +30,7 @@ class ingestion_pipeline(object):
 
         # Drop unused columns
         self.Transactions.drop(columns=['tr_ID','tr_supplier','tr_qty','tr_qty_units','tr_rate','tr_notes'],inplace=True)
-        self.Accounts.drop(columns=['acc_notes','acc_last_refresh','acc_baseline_date','Unnamed: 12','Unnamed: 13','Signs'],inplace=True)
+        self.Accounts.drop(columns=['acc_sub_type','acc_notes','acc_last_refresh','acc_baseline_date'],inplace=True)
         self.Expense_Picklist.drop(columns=['exp_ID'],inplace=True)
         self.Income_Picklist.drop(columns=['inc_ID'],inplace=True)
 
