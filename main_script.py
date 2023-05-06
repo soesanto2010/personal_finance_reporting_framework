@@ -21,8 +21,8 @@ from output_generation import generate_csv_outputs
 # Part 2: Set run parameters
 
 Start_Date = datetime.date(2021,6,25)        # start of date for tracking expenses
-End_Date = datetime.date(2022,6,10)
-path = 'C:\\Users\\vsoesanto\\Desktop\\Life Strategy Planning\\Financial Planning\\Financial Management\\'
+End_Date = datetime.date(2023,5,5)
+path = 'C:\\Users\\feiya\\OneDrive\\Desktop\\Financial Management\\'
 filename = 'Data Structure.xlsx'
 
 ##############################################################################################################
