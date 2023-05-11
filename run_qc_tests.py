@@ -4,8 +4,8 @@ def verify_accounting_equation(self):
 
     """Check if the accounting equation: asset = liability + equity is preserved"""
 
-    LHS = self.Class_Level_Summary[(self.Class_Level_Summary["acc_A/L/E_classification"]=="Asset") & (self.Class_Level_Summary["acc_A/L/E_sign"]=="[+ve]")]["End_Value_Overwrite"].sum() - self.Class_Level_Summary[(self.Class_Level_Summary["acc_A/L/E_classification"]=="Asset") & (self.Class_Level_Summary["acc_A/L/E_sign"]=="[-ve]")]["End_Value_Overwrite"].sum()
-    RHS = self.Class_Level_Summary[(self.Class_Level_Summary["acc_A/L/E_classification"]!="Asset") & (self.Class_Level_Summary["acc_A/L/E_sign"]=="[+ve]")]["End_Value_Overwrite"].sum() - self.Class_Level_Summary[(self.Class_Level_Summary["acc_A/L/E_classification"]!="Asset") & (self.Class_Level_Summary["acc_A/L/E_sign"]=="[-ve]")]["End_Value_Overwrite"].sum()
+    LHS = self.Class_Level_Summary[(self.Class_Level_Summary["acc_A/L/E_classification"]=="Asset") & (self.Class_Level_Summary["acc_A/L/E_sign"]=="[+ve]")]["MV"].sum() - self.Class_Level_Summary[(self.Class_Level_Summary["acc_A/L/E_classification"]=="Asset") & (self.Class_Level_Summary["acc_A/L/E_sign"]=="[-ve]")]["MV"].sum()
+    RHS = self.Class_Level_Summary[(self.Class_Level_Summary["acc_A/L/E_classification"]!="Asset") & (self.Class_Level_Summary["acc_A/L/E_sign"]=="[+ve]")]["MV"].sum() - self.Class_Level_Summary[(self.Class_Level_Summary["acc_A/L/E_classification"]!="Asset") & (self.Class_Level_Summary["acc_A/L/E_sign"]=="[-ve]")]["MV"].sum()
 
     if abs(LHS - RHS) < 0.01:
         print("(1) ✓ Accounting Equation Preserved")
