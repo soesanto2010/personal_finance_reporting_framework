@@ -7,16 +7,22 @@ class ingestion_pipeline(object):
     """Object to store shared state and processing methods"""
     def __init__(
             self,
-            path,
-            filename,
             start_date,
-            end_date
+            end_date,
+            timezone,
+            max_pull_retries,
+            security_price_metric,
+            path,
+            filename
     ):
         """Initializes Pipeline object with shared state and inputs"""
-        self.path = path
-        self.filename = filename
         self.start_date = start_date
         self.end_date = end_date
+        self.timezone = timezone
+        self.max_pull_retries = max_pull_retries
+        self.security_price_metric = security_price_metric
+        self.path = path
+        self.filename = filename
         self.Days_Ellapsed = (end_date - start_date).days
         self.Transactions = pd.read_excel(path+filename,sheet_name='Transactions')
         self.Accounts = pd.read_excel(path+filename,sheet_name='Accounts')
@@ -28,35 +34,31 @@ class ingestion_pipeline(object):
 
     def preprocess_transactions(self):
 
-        # Drop unused columns
-        self.Transactions.drop(columns=['tr_ID','tr_supplier','tr_qty','tr_qty_units','tr_rate','tr_notes'],inplace=True)
-        self.Accounts.drop(columns=['acc_sub_type','acc_notes','acc_last_refresh','acc_baseline_date'],inplace=True)
+        # (1) Drop unused columns
+        self.Transactions.drop(columns=['tr_ID','tr_supplier','tr_qty_units','tr_rate','tr_notes'],inplace=True)
+        self.Accounts.drop(columns=['acc_notes','acc_last_refresh','acc_baseline_date'],inplace=True)
         self.Expense_Picklist.drop(columns=['exp_ID'],inplace=True)
         self.Income_Picklist.drop(columns=['inc_ID'],inplace=True)
 
-        # Add depreciation expenses
+        # (2) Add depreciation expenses
         Transactions_with_depex = self.add_fixture_depreciation_expense()
         print('finished adding depreciation expenses')
 
-        # Define Date-related variables
+        # (3) Define Date-related variables
         Transactions_with_depex['Tr_Date'] = pd.to_datetime(Transactions_with_depex['tr_close_date'], format="%m/%d/%y")
         Transactions_with_depex['Tr_Week'] = Transactions_with_depex['tr_close_date'].dt.isocalendar().week
         Transactions_with_depex['Tr_Month'] = Transactions_with_depex['tr_close_date'].dt.month
         Transactions_with_depex['Tr_Year'] = Transactions_with_depex['tr_close_date'].dt.isocalendar().year
         Transactions_with_depex['Tr_Date'] = pd.to_datetime(Transactions_with_depex['tr_close_date']).dt.date
 
-        # Keep only in-window transactions
+        # (4) Keep only in-window transactions
         Transactions_relevant_timeframe = Transactions_with_depex[Transactions_with_depex['Tr_Date'] <= self.end_date]
 
-        # Fill in the Impact Magnitudes based on tr_amt
-        Transactions_relevant_timeframe["Impacted_Acc_1_Mag"] = Transactions_relevant_timeframe["tr_amt"]
-        Transactions_relevant_timeframe["Impacted_Acc_2_Mag"] = Transactions_relevant_timeframe["tr_amt"]
-
-        # Add Account ID
+        # (5) Add Account ID
         Transactions_temp_1 = Transactions_relevant_timeframe.merge(self.Accounts.iloc[:,0:2],left_on="tr_impacted_acc_1",right_on="acc_name",how="left")
         self.Transactions_temp_2 = Transactions_temp_1.merge(self.Accounts.iloc[:,0:2],left_on="tr_impacted_acc_2",right_on="acc_name",how="left",suffixes=('_1','_2'))
 
-        # Rename columns
+        # (6) Rename columns
         self.Transactions_temp_2.rename(columns={"acc_ID_1":"Impacted_Acc_ID_1",
                                                  "acc_ID_2":"Impacted_Acc_ID_2",
                                                  "tr_impacted_acc_1":"Impacted_Acc_1",
@@ -64,7 +66,7 @@ class ingestion_pipeline(object):
                                                  "tr_impacted_acc_1_sign":"Impacted_Acc_1_Sign",
                                                  "tr_impacted_acc_2_sign":"Impacted_Acc_2_Sign"},inplace=True)
 
-        # Keep only relevant columns
+        # (7) Keep only relevant columns
         self.Transactions = self.Transactions_temp_2.drop(columns=['acc_name_1','acc_name_2','tr_init_date','tr_close_date','tr_SKU_lifetime'])
         print('finished preprocessing Transactions dataset')
 
