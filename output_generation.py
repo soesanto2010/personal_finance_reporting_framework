@@ -15,6 +15,7 @@ def generate_csv_outputs(self):
     self.Revenue_Trend.to_excel(writer, sheet_name='Revenue_Trend')
     self.Expense_Pivot.to_excel(writer,sheet_name='Expenses_Trend')
     self.Summary_KPI.to_excel(writer,sheet_name='Summary_KPI')
+    self.securities.to_excel(writer, sheet_name='Security_valuations')
 
     # Close the Pandas Excel writer and output the Excel file.
     writer.save()

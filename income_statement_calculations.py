@@ -35,9 +35,9 @@ def calculate_financial_KPIs(self):
     """This block of code calculates primary financial KPIs based on the Class-Level Summary.
     We currently don't have any non-current assets (excluding our car) or non-current liabilities"""
 
-    total_assets = self.Class_Level_Summary[self.Class_Level_Summary["acc_A/L/E_classification"] == "Asset"]["End_Value_Overwrite"].sum()
-    liquid_net_assets = self.Class_Level_Summary[(self.Class_Level_Summary["acc_type"] == "Cash") | (self.Class_Level_Summary["acc_type"] == "Marketable Securities")]["End_Value_Overwrite"].sum()
-    total_liabilities = self.Class_Level_Summary[self.Class_Level_Summary["acc_A/L/E_classification"] == "Liability"]["End_Value_Overwrite"].sum()
+    total_assets = self.Class_Level_Summary[self.Class_Level_Summary["acc_A/L/E_classification"] == "Asset"]["MV"].sum()
+    liquid_net_assets = self.Class_Level_Summary[(self.Class_Level_Summary["acc_type"] == "Cash") | (self.Class_Level_Summary["acc_type"] == "Marketable Securities")]["MV"].sum()
+    total_liabilities = self.Class_Level_Summary[self.Class_Level_Summary["acc_A/L/E_classification"] == "Liability"]["MV"].sum()
     revenue = self.Class_Level_Summary[self.Class_Level_Summary["acc_type"] == "Revenue"]["Net_Change_From_Operations"].sum()
     net_income = self.Class_Level_Summary[(self.Class_Level_Summary["acc_type"] == "Revenue") | (self.Class_Level_Summary["acc_type"] == "Gain")]["Net_Change_From_Operations"].sum() - self.Class_Level_Summary[(self.Class_Level_Summary["acc_type"] == "Expense") | (self.Class_Level_Summary["acc_type"] == "Loss")]["Net_Change_From_Operations"].sum()
     # Ratios
