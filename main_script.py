@@ -25,7 +25,7 @@ from output_generation import generate_csv_outputs
 # Part 2: Set run parameters
 
 default_start_date = '2021-06-25 00:00:00'   # start date for tracking expenses
-default_end_date = '2023-05-10 18:00:00'     # (enter 'YYYY-MM-DD HH:MM:SS' to close on a specific (past) date, otherwise enter None to close on the current datetime)
+default_end_date = None                      # (enter 'YYYY-MM-DD HH:MM:SS' to close on a specific (past) date, otherwise enter None to close on the current datetime)
 default_timezone = 'UTC'
 default_max_pull_retries = 5
 default_security_price_metric = "Adj Close"  # default price for measuring the value of securities. Options include {Open, High, Low, Close, Adj Close}
