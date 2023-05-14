@@ -43,15 +43,39 @@ def get_revenue_trend(self):
 
 def get_expenses_trend(self):
 
-    """This block of code determines the living expenses by month and year"""
+    """This block of code determines the expenses by period (by month and year)"""
 
-    self.Expenses_Subset = self.Transactions[~self.Transactions["tr_expense"].isnull()].merge(self.Expense_Picklist,left_on=["tr_expense"],right_on=["exp_name"],how='left')
-    Expenses_Relevant_Dataset = self.Expenses_Subset[self.Expenses_Subset["exp_is_live"] == 1]
-    Expenses_Relevant_Dataset = Expenses_Relevant_Dataset.merge(self.Expense_Group_Picklist,on=['exp_grp_ID'],how='left')
+    # (1) Filter to only transactions data that has expense recognition
+    transactions_with_expense_recognition = self.Transactions[~self.Transactions["tr_expense"].isnull()]
+    self.transactions_with_expense_IDs = transactions_with_expense_recognition.merge(self.Expense_Picklist,left_on=["tr_expense"],right_on=["exp_name"],how='left').merge(self.Expense_Group_Picklist,on=['exp_grp_ID'],how='left')
 
-    self.Expense_List = Expenses_Relevant_Dataset.groupby(['exp_grp','exp_name','Tr_Year','Tr_Month'],as_index=False)['tr_amt'].sum()
-    self.Expense_Pivot = pd.pivot_table(self.Expense_List,index=['exp_grp','exp_name'],values=['tr_amt'],columns=['Tr_Year','Tr_Month'],aggfunc=[np.sum])
-    print('finished generating breakdown of living expenses by month and year')
+    # (2) Exclude expense sources coming from:
+    # (a) Depreciation expenses
+    # (b) Purchases of securities
+    subset = self.transactions_with_expense_IDs[~self.transactions_with_expense_IDs["exp_primary_cat"].isna()]
+
+    # (3) Group the different expense sources by period
+    time_trend = subset.groupby(['exp_primary_cat','exp_secondary_cat','Tr_Year','Tr_Month'],as_index=False)['tr_amt'].sum()
+
+    # (4) Add the total (ONLY for living expenses)
+    agg_trend = subset[subset['exp_primary_cat'].isin(["(1) Living (Opex)", "(2) Living (Capex)"])].groupby(["Tr_Year", "Tr_Month"], as_index=False)["tr_amt"].sum()
+    agg_trend["exp_primary_cat"] = '(0) Total Living'
+    agg_trend["exp_secondary_cat"] = '(0) Total Living'
+    time_trend_with_totals = time_trend.append(agg_trend)
+
+    # (4) Create pivot table summaries (one based on the primary category, and the other based on the secondary category)
+    self.Expense_Trend_primary_cat = pd.pivot_table(time_trend_with_totals,
+                                                    index=['Tr_Year','Tr_Month'],
+                                                    values=['tr_amt'],
+                                                    columns=['exp_primary_cat'],
+                                                    aggfunc=[np.sum])
+    self.Expense_Trend_secondary_cat = pd.pivot_table(time_trend_with_totals,
+                                                      index=['Tr_Year', 'Tr_Month'],
+                                                      values=['tr_amt'],
+                                                      columns=['exp_primary_cat', 'exp_secondary_cat'],
+                                                      aggfunc=[np.sum])
+
+    print('finished generating breakdown of expenses by month and year')
 
 def calculate_financial_KPIs(self):
 
