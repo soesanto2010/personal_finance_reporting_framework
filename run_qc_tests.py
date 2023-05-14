@@ -29,7 +29,7 @@ def ensure_no_non_standard_account_names(self):
 
     Non_standard_acc_names = len(self.Transactions_temp_2[(self.Transactions_temp_2["Impacted_Acc_ID_1"].isnull()) | (self.Transactions_temp_2["Impacted_Acc_2"].isnull())])
     Non_standard_rev_names = len(self.transactions_with_income_IDs[self.transactions_with_income_IDs["inc_grp_ID"].isnull()])
-    Non_standard_exp_names = len(self.Expenses_Subset[self.Expenses_Subset["exp_grp_ID"].isnull()])
+    Non_standard_exp_names = len(self.transactions_with_expense_IDs[self.transactions_with_expense_IDs["exp_grp_ID"].isnull()])
 
     if Non_standard_acc_names + Non_standard_rev_names + Non_standard_exp_names > 0:
         print("(3) ❌ Non-standard account names detected")
