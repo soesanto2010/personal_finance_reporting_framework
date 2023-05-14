@@ -6,17 +6,40 @@ import numpy as np
 
 def get_revenue_trend(self):
 
-    """This block of code determines the operating revenue by month and year"""
+    """This block of code determines the revenue by period (by month and year)"""
 
-    self.Revenue_Subset = self.Transactions[~self.Transactions["tr_income"].isnull()].merge(self.Income_Picklist,left_on=["tr_income"],right_on=["inc_name"],how='left')
-    Revenue_Relevant_Dataset = self.Revenue_Subset[self.Revenue_Subset["inc_is_operational"] == 1]
-    Revenue_Relevant_Dataset = Revenue_Relevant_Dataset.merge(self.Income_Group_Picklist,on='inc_grp_ID',how='left')
+    # (1) Filter to only transactions data that has revenue recognition
+    transactions_with_revenue_recognition = self.Transactions[~self.Transactions["tr_income"].isnull()]
+    self.transactions_with_income_IDs = transactions_with_revenue_recognition.merge(self.Income_Picklist, left_on=["tr_income"], right_on=["inc_name"], how='left').merge(self.Income_Group_Picklist, on='inc_grp_ID', how='left')
 
-    self.Revenue_Breakdown = Revenue_Relevant_Dataset.groupby("inc_grp",as_index=False)["tr_amt"].sum()
-    self.Revenue_Breakdown["%"] = self.Revenue_Breakdown["tr_amt"]/self.Revenue_Breakdown["tr_amt"].sum()
+    # (2) Exclude revenue sources coming from:
+    # (a) Insurance Reimbursement (these will later be presented as offsets to total healthcare costs in the expense report)
+    # (b) Proceeds from sale of assets (the gains / losses are currently inserted manually into the transactions table)
+    subset = self.transactions_with_income_IDs[~self.transactions_with_income_IDs["inc_secondary_cat"].isna()]
 
-    self.Revenue_Trend = Revenue_Relevant_Dataset[["tr_amt","Tr_Year","Tr_Month"]].groupby(["Tr_Year","Tr_Month"],as_index=False)["tr_amt"].sum()
-    print('finished generating breakdown of operational revenue by month and year')
+    # (3) Group the different revenue sources by period
+    time_trend = subset.groupby(["Tr_Year", "Tr_Month", "inc_primary_cat", "inc_secondary_cat"],as_index=False)["tr_amt"].sum()
+
+    # (4) Add the total
+    agg_trend = subset.groupby(["Tr_Year", "Tr_Month"],as_index=False)["tr_amt"].sum()
+    agg_trend["inc_primary_cat"] = '(0) Total'
+    agg_trend["inc_secondary_cat"] = '(0) Total'
+
+    time_trend_with_totals = time_trend.append(agg_trend)
+
+    # (5) Create pivot table summaries (one based on the primary category, and the other based on the secondary category)
+    self.Revenue_Trend_primary_cat = pd.pivot_table(time_trend_with_totals,
+                                                    index=['Tr_Year', 'Tr_Month'],
+                                                    values=['tr_amt'],
+                                                    columns=['inc_primary_cat'],
+                                                    aggfunc=[np.sum])
+    self.Revenue_Trend_secondary_cat = pd.pivot_table(time_trend_with_totals,
+                                                      index=['Tr_Year', 'Tr_Month'],
+                                                      values=['tr_amt'],
+                                                      columns=['inc_primary_cat', 'inc_secondary_cat'],
+                                                      aggfunc=[np.sum])
+
+    print('finished generating breakdown of revenue by month and year')
 
 def get_expenses_trend(self):
 
