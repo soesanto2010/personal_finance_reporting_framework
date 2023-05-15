@@ -16,7 +16,7 @@ import pandas as pd
 from data_ingestion import ingestion_pipeline
 from security_valuation import get_quantities_on_closing_date, get_market_values_on_closing_date
 from balance_sheet_calculations import get_account_level_balance_sheet, get_account_type_level_balance_sheet, get_overall_balance_sheet
-from income_statement_calculations import get_revenue_trend, get_expenses_trend, calculate_financial_KPIs
+from income_statement_calculations import calculate_financial_KPIs, generate_profit_and_loss_statement
 from run_qc_tests import verify_accounting_equation, ensure_closing_date_is_later_than_initiation_dates, ensure_no_non_standard_account_names
 from output_generation import generate_csv_outputs
 
@@ -70,9 +70,8 @@ def main():
     get_account_type_level_balance_sheet(datasets)
     get_overall_balance_sheet(datasets)
 
-    # (d) Get revenue and expense trends
-    get_revenue_trend(datasets)
-    get_expenses_trend(datasets)
+    # (d) Get income statement by period
+    generate_profit_and_loss_statement(datasets)
 
     # (e) Ratio calculations
     calculate_financial_KPIs(datasets)

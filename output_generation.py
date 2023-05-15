@@ -11,10 +11,8 @@ def generate_csv_outputs(self):
     self.BS_Level_Summary.to_excel(writer, sheet_name='Overall')
     self.Class_Level_Summary.to_excel(writer, sheet_name='Class')
     self.Acct_Level_Summary.to_excel(writer, sheet_name='Account')
-    self.Revenue_Trend_primary_cat.to_excel(writer, sheet_name='Revenue_Trend_primary_cat')
-    self.Revenue_Trend_secondary_cat.to_excel(writer, sheet_name='Revenue_Trend_secondary_cat')
-    self.Expense_Trend_primary_cat.to_excel(writer, sheet_name='Expense_Trend_primary_cat')
-    self.Expense_Trend_secondary_cat.to_excel(writer, sheet_name='Expense_Trend_secondary_cat')
+    self.P_L_statement_overall.to_excel(writer, sheet_name='monthly_P_L_overall')
+    self.P_L_statement_deep_dive.to_excel(writer, sheet_name='monthly_P_L_deep_dive')
     self.Summary_KPI.to_excel(writer,sheet_name='Summary_KPI')
     self.securities.to_excel(writer, sheet_name='Security_valuations')
 
