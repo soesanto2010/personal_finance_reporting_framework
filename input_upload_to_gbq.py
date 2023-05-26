@@ -14,28 +14,26 @@ from util import load_to_bigquery
 
 # (Local) location of the file
 
-default_timezone = 'UTC'
-default_path = 'C:\\Users\\feiya\\OneDrive\\Desktop\\Financial Management\\'
-default_filename = 'Data Structure.xlsx'
+default_timezone = "UTC"
+default_path = "C:\\Users\\feiya\\OneDrive\\Desktop\\Financial Management\\"
+default_filename = "Data Structure.xlsx"
 sheet_list = [
-
     # (a) Expense-related data
-    'tblpl_expense_group', 'tblpl_expense',
-
+    "tblpl_expense_group",
+    "tblpl_expense",
     # (b) Income-related data
-    'tblpl_income_group', 'tblpl_income',
-
+    "tblpl_income_group",
+    "tblpl_income",
     # (c) Account-related data
-    'Accounts', 'Asset_Log',
-
+    "Accounts",
+    "Asset_Log",
     # (d) Transactions data
-    'Transactions'
-
+    "Transactions",
 ]
 
 # (Cloud) location of the file
-gcp_project = 'vsoesanto-gcp-finance-prod'
-gcp_dataset = 'personal_finance'
+gcp_project = "vsoesanto-gcp-finance-prod"
+gcp_dataset = "personal_finance"
 
 ##############################################################################################################
 
@@ -47,7 +45,7 @@ for i in sheet_list:
     df = pd.read_excel(default_path + default_filename, sheet_name=i)
 
     # (b) Set the upload date
-    df['upload_date'] = pd.Timestamp(pd.Timestamp.now(), tz=default_timezone)
+    df["upload_date"] = pd.Timestamp(pd.Timestamp.now(), tz=default_timezone)
 
     # (c) Upload to bigquery
-    load_to_bigquery(df, gcp_project, gcp_dataset, i, load_type='overwrite')
+    load_to_bigquery(df, gcp_project, gcp_dataset, i, load_type="overwrite")

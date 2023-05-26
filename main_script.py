@@ -14,30 +14,44 @@ import pandas as pd
 
 # (b) Internal packages
 from data_ingestion import ingestion_pipeline
-from security_valuation import get_quantities_on_closing_date, get_market_values_on_closing_date
-from balance_sheet_calculations import get_account_level_balance_sheet, get_account_type_level_balance_sheet, get_overall_balance_sheet
-from income_statement_calculations import calculate_financial_KPIs, generate_profit_and_loss_statement
-from run_qc_tests import verify_accounting_equation, ensure_closing_date_is_later_than_initiation_dates, ensure_no_non_standard_account_names
+from security_valuation import (
+    get_quantities_on_closing_date,
+    get_market_values_on_closing_date,
+)
+from balance_sheet_calculations import (
+    get_account_level_balance_sheet,
+    get_account_type_level_balance_sheet,
+    get_overall_balance_sheet,
+)
+from income_statement_calculations import (
+    calculate_financial_KPIs,
+    generate_profit_and_loss_statement,
+)
+from run_qc_tests import (
+    verify_accounting_equation,
+    ensure_closing_date_is_later_than_initiation_dates,
+    ensure_no_non_standard_account_names,
+)
 from output_generation import generate_csv_outputs
 
 ##############################################################################################################
 
 # Part 2: Set run parameters
 
-default_start_date = '2021-06-25 00:00:00'   # start date for tracking expenses
-default_end_date = None                      # (enter 'YYYY-MM-DD HH:MM:SS' to close on a specific (past) date, otherwise enter None to close on the current datetime)
-default_timezone = 'UTC'
+default_start_date = "2021-06-25 00:00:00"  # start date for tracking expenses
+default_end_date = None  # (enter 'YYYY-MM-DD HH:MM:SS' to close on a specific (past) date, otherwise enter None to close on the current datetime)
+default_timezone = "UTC"
 default_max_pull_retries = 5
 default_security_price_metric = "Adj Close"  # default price for measuring the value of securities. Options include {Open, High, Low, Close, Adj Close}
-default_data_input_source = 'cloud'          # default source for datasets is 'cloud' (currently gcp), but 'local' can be used during dev ops
+default_data_input_source = "local"  # default source for datasets is 'cloud' (currently gcp), but 'local' can be used during dev ops
 
 # Cloud path
-default_gcp_project = 'vsoesanto-gcp-finance-prod'
-default_gcp_dataset = 'personal_finance'
+default_gcp_project = "vsoesanto-gcp-finance-prod"
+default_gcp_dataset = "personal_finance"
 
 # Local path
-default_path = 'C:\\Users\\feiya\\OneDrive\\Desktop\\Financial Management\\'
-default_filename = 'Data Structure.xlsx'
+default_path = "C:\\Users\\feiya\\OneDrive\\Desktop\\Financial Management\\"
+default_filename = "Data Structure.xlsx"
 
 ##############################################################################################################
 
@@ -53,6 +67,7 @@ else:
 ##############################################################################################################
 
 # Part 4: Main script
+
 
 def main():
 
@@ -95,6 +110,7 @@ def main():
     generate_csv_outputs(datasets)
 
     print("run completed")
+
 
 if __name__ == "__main__":
     main()
