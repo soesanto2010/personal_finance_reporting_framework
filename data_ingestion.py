@@ -1,6 +1,7 @@
 # This script contains parts for reading + cleaning the transactions and other input datasets
 
 import pandas as pd
+from util import download_data
 
 class ingestion_pipeline(object):
 
@@ -12,24 +13,34 @@ class ingestion_pipeline(object):
             timezone,
             max_pull_retries,
             security_price_metric,
+            data_input_source,
             path,
-            filename
+            filename,
+            gcp_project,
+            gcp_dataset
     ):
         """Initializes Pipeline object with shared state and inputs"""
+        # (1) Run configs
         self.start_date = start_date
         self.end_date = end_date
         self.timezone = timezone
         self.max_pull_retries = max_pull_retries
         self.security_price_metric = security_price_metric
+        self.data_input_source = data_input_source
         self.path = path
         self.filename = filename
+        self.gcp_project = gcp_project
+        self.gcp_dataset = gcp_dataset
         self.Days_Ellapsed = (end_date - start_date).days
-        self.Transactions = pd.read_excel(path+filename,sheet_name='Transactions')
-        self.Accounts = pd.read_excel(path+filename,sheet_name='Accounts')
-        self.Expense_Picklist = pd.read_excel(path+filename,sheet_name='tblpl_expense')
-        self.Expense_Group_Picklist = pd.read_excel(path+filename,sheet_name='tblpl_expense_group')
-        self.Income_Picklist = pd.read_excel(path+filename,sheet_name='tblpl_income')
-        self.Income_Group_Picklist = pd.read_excel(path+filename,sheet_name='tblpl_income_group')
+
+        # (2) Download datasets
+        self.Transactions = download_data(self.path, self.filename, self.gcp_project, self.gcp_dataset, 'Transactions', self.data_input_source)
+        self.Accounts = download_data(self.path, self.filename, self.gcp_project, self.gcp_dataset, 'Accounts', self.data_input_source)
+        self.Expense_Picklist = download_data(self.path, self.filename, self.gcp_project, self.gcp_dataset, 'tblpl_expense', self.data_input_source)
+        self.Expense_Group_Picklist = download_data(self.path, self.filename, self.gcp_project, self.gcp_dataset, 'tblpl_expense_group', self.data_input_source)
+        self.Income_Picklist = download_data(self.path, self.filename, self.gcp_project, self.gcp_dataset, 'tblpl_income', self.data_input_source)
+        self.Income_Group_Picklist = download_data(self.path, self.filename, self.gcp_project, self.gcp_dataset, 'tblpl_income_group', self.data_input_source)
+
         print("finished reading inputs")
 
     def preprocess_transactions(self):
