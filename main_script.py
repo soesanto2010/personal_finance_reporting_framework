@@ -54,7 +54,7 @@ default_max_pull_retries = 5
 default_security_price_metric = "Adj Close"
 
 # default source for datasets is 'cloud', but 'local' can be used during dev ops
-default_data_input_source = "local"
+default_data_input_source = "cloud"
 
 # Cloud path
 default_gcp_project = "vsoesanto-gcp-finance-prod"
