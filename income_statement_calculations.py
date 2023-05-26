@@ -1,5 +1,6 @@
-# This script contains functions which generate a trend of revenue + expenses, in addition to calculating
-# financial KPIs
+#####################################################################################
+# This script contains functions which generate a trend of revenue + expenses, in
+# addition to calculating financial KPIs
 
 import pandas as pd
 import numpy as np
@@ -7,7 +8,8 @@ import numpy as np
 
 def generate_profit_and_loss_statement(self):
 
-    """This block of code determines the profit & loss (P&L) by period (by month and year)"""
+    """This block of code determines the profit & loss (P&L) by period
+    (by month and year)"""
 
     columns_to_keep = [
         "Tr_Year",
@@ -36,7 +38,8 @@ def generate_profit_and_loss_statement(self):
     ).merge(self.Expense_Group_Picklist, on=["exp_grp_ID"], how="left")
 
     # (3) Include only transactions with non-NULL P&L IDs:
-    # Exclude certain expenses (like depreciation and acquisition of shares) and revenues (like proceeds from sales of shares)
+    # Exclude certain expenses (like depreciation and acquisition of shares) and
+    # revenues (like proceeds from sales of shares)
     subset_income = self.transactions_with_income_IDs[
         ~self.transactions_with_income_IDs["P_L_primary_cat"].isna()
     ]
@@ -55,7 +58,9 @@ def generate_profit_and_loss_statement(self):
     # (6) Determine the transaction type
     subset_income["type"] = "(1) revenue"
     subset_expenses["type"] = "(2) expenses"
-    # Those with offsets need to change transaction type (for example, healthcare insurance reimbursements should be classified as an offset to the healthcare expense instead of a revenue line item)
+    # Those with offsets need to change transaction type (for example, healthcare
+    # insurance reimbursements are classified as offsets to the healthcare expense
+    # instead of a revenue line item)
     subset_income.loc[subset_income["P_L_offset_flag"] == 1, "type"] = "(2) expenses"
     subset_expenses.loc[subset_expenses["P_L_offset_flag"] == 1, "type"] = "(1) revenue"
 
@@ -81,7 +86,8 @@ def generate_profit_and_loss_statement(self):
         as_index=False,
     )["amount"].sum()
 
-    # (9) Create pivot table summaries (one based on a higher-level, and the other based on a deep dive)
+    # (9) Create pivot table summaries (one based on a higher-level, and
+    # the other based on a deep dive)
     self.P_L_statement_overall = pd.pivot_table(
         time_trend,
         index=["type", "P_L_primary_cat", "P_L_secondary_cat_after_offset"],
@@ -102,8 +108,9 @@ def generate_profit_and_loss_statement(self):
 
 def calculate_financial_KPIs(self):
 
-    """This block of code calculates primary financial KPIs based on the Class-Level Summary.
-    We currently don't have any non-current assets (excluding our car) or non-current liabilities"""
+    """This block of code calculates primary financial KPIs based on the Class-Level
+    Summary. We currently don't have any non-current assets (excluding our car) or
+    non-current liabilities"""
 
     total_assets = self.Class_Level_Summary[
         self.Class_Level_Summary["acc_A_L_E_classification"] == "Asset"

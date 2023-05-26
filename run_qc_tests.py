@@ -34,7 +34,8 @@ def verify_accounting_equation(self):
 
 def ensure_closing_date_is_later_than_initiation_dates(self):
 
-    """Check if closing date is always later than initial date in the transaction dataset"""
+    """Check if closing date is always later than initial date in the
+    transaction dataset"""
 
     Non_chronological_dates = len(
         self.Transactions_temp_2[

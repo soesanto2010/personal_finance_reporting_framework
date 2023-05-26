@@ -7,8 +7,9 @@ from balance_sheet_calculations import calculate_change
 
 def get_quantities_on_closing_date(self):
 
-    """This block of code takes as input a list of accounts, and returns the (operational) net change in the quantity of
-    shares of that account between Start_Date and End_Date as a result of the security trades. Since each line of
+    """This block of code takes as input a list of accounts, and returns the
+    (operational) net change in the quantity of shares of that account between
+    Start_Date and End_Date as a result of the security trades. Since each line of
     transaction involves two accounts, Acc_1 and Acc_2, we repeat this twice"""
 
     # (1) Get baseline quantities on starting date
@@ -45,7 +46,8 @@ def get_quantities_on_closing_date(self):
 def get_market_values_on_closing_date(self):
 
     """Adds to the securities table the:
-    (1) mv, the market value per share (in USD/share). The fallback is used if no market value is pulled
+    (1) mv, the market value per share (in USD/share). The fallback is used if no
+    market value is pulled
     (2) mv_pull_date, the market value pull date
     (3) mv_source_type, the market value source type
     (4) MV, the total market value for all shares (in USD)
@@ -91,8 +93,9 @@ def get_market_values_on_closing_date(self):
 
 def get_security_value_using_yfinance(ticker_key, date_key, max_retries, price_metric):
 
-    """The core function in yfinance pulls security values based on the (1) ticker and (2) datetime as inputs.
-    If the function fails (for example, because the day falls on a market close), we retry based on the previous date"""
+    """The core function in yfinance pulls security values based on the (1) ticker
+    and (2) datetime as inputs. If the function fails (for example, because the day
+    falls on a market close), we retry based on the previous date"""
 
     # (1) Initial parameters
     day_decrement = 0
@@ -101,7 +104,8 @@ def get_security_value_using_yfinance(ticker_key, date_key, max_retries, price_m
     # (2) Initial database pull
     df = yf.download(tickers=ticker_key, start=updated_date, end=updated_date)
 
-    # (3) Repull database by trying previous day if fails (max retries dictated by default_max_yfinance_pull_retries)
+    # (3) Repull database by trying previous day if fails (max retries dictated by
+    # default_max_yfinance_pull_retries)
     while len(df) == 0 and day_decrement <= max_retries:
         print(
             "Unable to retrieve the security value of "
@@ -113,7 +117,8 @@ def get_security_value_using_yfinance(ticker_key, date_key, max_retries, price_m
         updated_date = date_key - pd.Timedelta(days=day_decrement)
         df = yf.download(tickers=ticker_key, start=updated_date, end=updated_date)
 
-    # (4) Pull out the security value of the price metric (price metric dictated by default_security_price_metric)
+    # (4) Pull out the security value of the price metric (price metric dictated by
+    # default_security_price_metric)
     if date_key == updated_date:
         security_value = list(df[price_metric])[0]
         print("Successful value pull for " + ticker_key + " on target closing date")

@@ -1,13 +1,16 @@
-# This script contains functions which generate a snapshot of the value of (1) an account, (2) account type or (3)
-# a balance sheet item (asset, liability, equity) given a transaction dataset
+#####################################################################################
+# This script contains functions which generate a snapshot of the value of (1) an
+# account, (2) account type or (3) a balance sheet item (asset, liability, equity)
+# given a transaction dataset
 
 
 def get_account_level_balance_sheet(self):
 
-    """This block of code calculates the (1) start value, (2) end value and (3) delta for each specific account.
-    For example, a specific bank account is a specific account"""
+    """This block of code calculates the (1) start value, (2) end value and (3) delta
+    for each account. For example, a specific bank account is a specific account"""
 
-    # (1) For each account, we determine the baseline and calculate the change in value between the start and end dates
+    # (1) For each account, we determine the baseline and calculate the change in
+    # value between the start and end dates
     unique_accounts = list(self.Accounts["acc_ID"].drop_duplicates())
     baseline_amount = self.Accounts.copy()
     delta_amount = calculate_change(unique_accounts, self.Transactions, "tr_amt")
@@ -19,7 +22,8 @@ def get_account_level_balance_sheet(self):
     # (2) Calculate the total book value (BV) at the closing date
     df["BV"] = df["acc_baseline_value"] + df["Net_Change"]
 
-    # (3) Determine the total market value (MV), which is determined by the securities valuation module
+    # (3) Determine the total market value (MV), which is determined by the securities
+    # valuation module
     self.Acct_Level_Summary = df.merge(
         self.securities[["acc_ID", "MV"]], on=["acc_ID"], how="left"
     )
@@ -30,7 +34,8 @@ def get_account_level_balance_sheet(self):
         },
         inplace=True,
     )
-    # For line items other than marketable securities, set the total market value equal to the book value
+    # For line items other than marketable securities, set the total market value equal
+    # to the book value
     self.Acct_Level_Summary.loc[
         self.Acct_Level_Summary["MV"].isnull(), "MV"
     ] = self.Acct_Level_Summary["BV"]
@@ -96,8 +101,8 @@ def get_account_level_balance_sheet(self):
 
 def get_account_type_level_balance_sheet(self):
 
-    """This block of code calculates the start value, end value and delta for the three sub-items of the balance sheet
-    For example, cash is a specific account type"""
+    """This block of code calculates the start value, end value and delta for the three
+    sub-items of the balance sheet. For example, cash is a specific account type"""
 
     self.Class_Level_Summary = self.Acct_Level_Summary.groupby(
         ["acc_A_L_E_classification", "acc_A_L_E_sign", "acc_type"], as_index=False
@@ -123,8 +128,8 @@ def get_account_type_level_balance_sheet(self):
 
 def get_overall_balance_sheet(self):
 
-    """This block of code calculates the start value, end value and delta for the three line items of the balance
-    balance - asset, liability and equity"""
+    """This block of code calculates the start value, end value and delta for the three
+    line items of the balance sheet - asset, liability and equity"""
 
     Parts = self.Class_Level_Summary.copy()
 
@@ -165,8 +170,9 @@ def get_overall_balance_sheet(self):
 
 def calculate_change(S, Transactions, metric):
 
-    """This block of code takes as input a list of accounts, and returns the (operational) net change in a specific
-    metric of that account between Start_Date and End_Date as a result of the recorded transactions. Since each line of
+    """This block of code takes as input a list of accounts, and returns the
+    (operational) net change in a specific metric of that account between Start_Date
+    and End_Date as a result of the recorded transactions. Since each line of
     transaction involves two accounts, Acc_1 and Acc_2, we have to repeat this twice"""
 
     # (1) Amounts coming from Acc_1 side

@@ -1,4 +1,5 @@
-# This script contains parts for reading + cleaning the transactions and other input datasets
+# This script contains parts for reading + cleaning the transactions
+# and other input datasets
 
 import pandas as pd
 from util import download_data
@@ -168,10 +169,11 @@ class ingestion_pipeline(object):
 
     def add_fixture_depreciation_expense(self):
 
-        """This block of code takes as input a list of capital expenditure (capex) transactions and generates
-        a list of depreciation expense transactions (once for each month) between (1) the date of purchase and (2)
-        the date of liquidation, which is currently set as purchase date + lifetime value (which is an input of
-        the data)"""
+        """This block of code takes as input a list of capital expenditure
+        (capex) transactions and generates a list of depreciation expense
+        transactions (once for each month) between (1) the date of purchase
+        and (2) the date of liquidation, which is currently set as purchase
+        date + lifetime value (which is an input of the data)"""
 
         # (1) Pull transactions that correspond to capex investments
         capex = self.Transactions[
@@ -187,18 +189,20 @@ class ingestion_pipeline(object):
         ls_depex = []
         ls_dep_date = []
 
-        # (3) Fill in the depreciation expense for each item i in each capex transaction
+        # (3) Fill in the depreciation expense for each item i in each
+        # capex transaction
         for i in list(range(0, len(capex))):
 
             # (a) Extract the components
             SKU = capex.iloc[i, 1]
             start_date = capex.iloc[i, 3]
-            max_months = int(
-                capex.iloc[i, 4]
-            )  # default is float, which gives error in indexing ops in part (b)
+            max_months = int(capex.iloc[i, 4])
+            # default is float, which gives error in indexing ops in
+            # part (b)
             depex = capex.iloc[i, 5]
 
-            # (b) Loop and create depex items for each PP&E, once for each month, until the max. months is reached
+            # (b) Loop and create depex items for each PP&E, once for
+            # each month, until the max. months is reached
             for j in list(range(1, max_months + 1)):
                 end_dep_date = start_date + pd.DateOffset(months=j)
                 ls_SKU += [SKU]
