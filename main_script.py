@@ -29,6 +29,13 @@ default_end_date = None                      # (enter 'YYYY-MM-DD HH:MM:SS' to c
 default_timezone = 'UTC'
 default_max_pull_retries = 5
 default_security_price_metric = "Adj Close"  # default price for measuring the value of securities. Options include {Open, High, Low, Close, Adj Close}
+default_data_input_source = 'cloud'          # default source for datasets is 'cloud' (currently gcp), but 'local' can be used during dev ops
+
+# Cloud path
+default_gcp_project = 'vsoesanto-gcp-finance-prod'
+default_gcp_dataset = 'personal_finance'
+
+# Local path
 default_path = 'C:\\Users\\feiya\\OneDrive\\Desktop\\Financial Management\\'
 default_filename = 'Data Structure.xlsx'
 
@@ -56,8 +63,11 @@ def main():
         timezone=default_timezone,
         max_pull_retries=default_max_pull_retries,
         security_price_metric=default_security_price_metric,
+        data_input_source=default_data_input_source,
         path=default_path,
-        filename=default_filename
+        filename=default_filename,
+        gcp_project=default_gcp_project,
+        gcp_dataset=default_gcp_dataset,
     )
     datasets.preprocess_transactions()
 

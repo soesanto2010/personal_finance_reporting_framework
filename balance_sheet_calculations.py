@@ -24,7 +24,7 @@ def get_account_level_balance_sheet(self):
     self.Acct_Level_Summary.loc[self.Acct_Level_Summary["MV"].isnull(),"MV"] = self.Acct_Level_Summary["BV"]
     self.Acct_Level_Summary["Net_Change_From_Market_Adjustment"] = self.Acct_Level_Summary["MV"] - self.Acct_Level_Summary["BV"]
     self.Acct_Level_Summary.sort_values(by=["acc_report_rank"],ascending=True,inplace=True)
-    self.Acct_Level_Summary = self.Acct_Level_Summary[["acc_A/L/E_classification","acc_A/L/E_sign","acc_type","acc_ID","acc_name","Baseline_Value","Net_Change_From_Operations","BV","Net_Change_From_Market_Adjustment","MV"]]
+    self.Acct_Level_Summary = self.Acct_Level_Summary[["acc_A_L_E_classification","acc_A_L_E_sign","acc_type","acc_ID","acc_name","Baseline_Value","Net_Change_From_Operations","BV","Net_Change_From_Market_Adjustment","MV"]]
 
     # (4) Calculate unrealized gain / loss due to market valuation
     Unrealized_gain = self.Acct_Level_Summary[self.Acct_Level_Summary["Net_Change_From_Market_Adjustment"] > 0]["Net_Change_From_Market_Adjustment"].sum()
@@ -46,7 +46,7 @@ def get_account_type_level_balance_sheet(self):
     """This block of code calculates the start value, end value and delta for the three sub-items of the balance sheet
     For example, cash is a specific account type"""
 
-    self.Class_Level_Summary = self.Acct_Level_Summary.groupby(["acc_A/L/E_classification","acc_A/L/E_sign","acc_type"],as_index=False)["Baseline_Value","Net_Change_From_Operations","BV","Net_Change_From_Market_Adjustment","MV"].sum()
+    self.Class_Level_Summary = self.Acct_Level_Summary.groupby(["acc_A_L_E_classification","acc_A_L_E_sign","acc_type"],as_index=False)["Baseline_Value","Net_Change_From_Operations","BV","Net_Change_From_Market_Adjustment","MV"].sum()
     Acc_type_priority = self.Accounts.groupby("acc_type",as_index=False)["acc_report_rank"].min()
     self.Class_Level_Summary = self.Class_Level_Summary.merge(Acc_type_priority,on="acc_type",how="left")
     self.Class_Level_Summary.sort_values(by=["acc_report_rank"],ascending=True,inplace=True)
@@ -60,18 +60,18 @@ def get_overall_balance_sheet(self):
 
     Parts = self.Class_Level_Summary.copy()
 
-    Parts.loc[Parts["acc_A/L/E_sign"] == "[+ve]","Vector"] = 1
-    Parts.loc[Parts["acc_A/L/E_sign"] == "[-ve]","Vector"] = -1
+    Parts.loc[Parts["acc_A_L_E_sign"] == "[+ve]","Vector"] = 1
+    Parts.loc[Parts["acc_A_L_E_sign"] == "[-ve]","Vector"] = -1
     Parts["Baseline_Value"] = Parts["Vector"] * Parts["Baseline_Value"]
     Parts["Net_Change_From_Operations"] = Parts["Vector"] * Parts["Net_Change_From_Operations"]
     Parts["Net_Change_From_Market_Adjustment"] = Parts["Vector"] * Parts["Net_Change_From_Market_Adjustment"]
     Parts["BV"] = Parts["Vector"] * Parts["BV"]
     Parts["MV"] = Parts["Vector"] * Parts["MV"]
 
-    self.BS_Level_Summary = Parts.groupby("acc_A/L/E_classification",as_index=False)[["Baseline_Value","Net_Change_From_Operations","BV","Net_Change_From_Market_Adjustment","MV"]].sum()
-    BS_Item_Priority = self.Accounts.groupby("acc_A/L/E_classification",as_index=False)["acc_report_rank"].min()
+    self.BS_Level_Summary = Parts.groupby("acc_A_L_E_classification",as_index=False)[["Baseline_Value","Net_Change_From_Operations","BV","Net_Change_From_Market_Adjustment","MV"]].sum()
+    BS_Item_Priority = self.Accounts.groupby("acc_A_L_E_classification",as_index=False)["acc_report_rank"].min()
 
-    self.BS_Level_Summary = self.BS_Level_Summary.merge(BS_Item_Priority,on="acc_A/L/E_classification",how="left")
+    self.BS_Level_Summary = self.BS_Level_Summary.merge(BS_Item_Priority,on="acc_A_L_E_classification",how="left")
     self.BS_Level_Summary.sort_values(by=["acc_report_rank"],ascending=True,inplace=True)
 
     print('finished preparing overall Balance Sheet')
