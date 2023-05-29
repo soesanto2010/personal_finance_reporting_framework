@@ -17,6 +17,7 @@ from data_ingestion import ingestion_pipeline
 from security_valuation import (
     get_quantities_on_closing_date,
     get_market_values_on_closing_date,
+    get_book_values_on_closing_date,
 )
 from balance_sheet_calculations import (
     get_account_level_balance_sheet,
@@ -47,14 +48,14 @@ default_start_date = "2021-06-25 00:00:00"
 default_end_date = None
 
 default_timezone = "UTC"
-default_max_pull_retries = 5
+default_max_pull_retries = 1
 
 # default type of price for measuring the value of securities. Options include
 # {Open, High, Low, Close, Adj Close}
 default_security_price_metric = "Adj Close"
 
 # default source for datasets is 'cloud', but 'local' can be used during dev ops
-default_data_input_source = "cloud"
+default_data_input_source = "local"
 
 # Cloud path
 default_gcp_project = "vsoesanto-gcp-finance-prod"
@@ -101,6 +102,7 @@ def main():
     # (b) Determine the total market values of securities on closing date
     get_quantities_on_closing_date(datasets)
     get_market_values_on_closing_date(datasets)
+    get_book_values_on_closing_date(datasets)
 
     # (c) Get balance sheet level items
     get_account_level_balance_sheet(datasets)

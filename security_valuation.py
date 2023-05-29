@@ -3,7 +3,8 @@
 import yfinance as yf
 import pandas as pd
 from balance_sheet_calculations import calculate_change
-
+from util import calc_base_qty_and_cost_basis, calc_delta_qty_and_cost_basis
+import numpy as np
 
 def get_quantities_on_closing_date(self):
 
@@ -90,6 +91,40 @@ def get_market_values_on_closing_date(self):
         1 - self.securities["acc_security_sale_commision_percentage"]
     )
 
+
+def get_book_values_on_closing_date(self):
+
+    """Adds to the securities table the:
+    (1) bv, the book value per share (in USD/share)
+    (2) MV, the total book value for all shares (in USD)
+    """
+
+    subset_security_account = self.securities[["acc_name", "End_Quantity"]]
+
+    Transactions_copy = self.Transactions_with_depex.copy()
+    Transactions_copy["Tr_Date"] = pd.to_datetime(Transactions_copy["tr_close_date"], format="%m/%d/%y")
+
+    t0 = np.datetime64(self.start_date)
+    tf = np.datetime64(self.end_date)
+
+    for i in list(range(0, len(self.securities))):
+
+        # (a) Extract the components
+        security_account = subset_security_account.iloc[i, 0]
+        end_quantity = subset_security_account.iloc[i, 1]
+
+        # (b) Get the base quantity and cost basis at inception
+        (base_qty, base_cost_basis) = calc_base_qty_and_cost_basis(self.Accounts, security_account)
+
+        # (c) Get the change in quantity and cost basis between the (i) start date and (ii) sale date
+        (change_qty, change_cost_basis) = calc_delta_qty_and_cost_basis(Transactions_copy, security_account, "Tr_Date", t0, tf, "tr_impacted_acc_1", "tr_impacted_acc_2")
+
+        # (d) Calculate the book value per share (bv) and total book value at closing
+        bv = (base_cost_basis + change_cost_basis) / (base_qty + change_qty)
+        BV = bv * end_quantity
+
+        # (e) Insert the book value into the table
+        self.securities.loc[self.securities['acc_name']==security_account, 'BV'] = BV
 
 def get_security_value_using_yfinance(ticker_key, date_key, max_retries, price_metric):
 

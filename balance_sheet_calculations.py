@@ -20,27 +20,34 @@ def get_account_level_balance_sheet(self):
     df.fillna(value=0, inplace=True)
 
     # (2) Calculate the total book value (BV) at the closing date
-    df["BV"] = df["acc_baseline_value"] + df["Net_Change"]
+    df["BV_raw"] = df["acc_baseline_value"] + df["Net_Change"]
 
-    # (3) Determine the total market value (MV), which is determined by the securities
-    # valuation module
+    # (3) Determine the total market value (MV) and total book value (BV), which is determined by the securities
+    # valuation module for the marketable securities
     self.Acct_Level_Summary = df.merge(
-        self.securities[["acc_ID", "MV"]], on=["acc_ID"], how="left"
+        self.securities[["acc_ID", "MV", "BV"]], on=["acc_ID"], how="left"
     )
     self.Acct_Level_Summary.rename(
         columns={
             "acc_baseline_value": "Baseline_Value",
             "Net_Change": "Net_Change_From_Operations",
+            "BV": "total_cost_basis",
+            "BV_raw": "BV"
         },
         inplace=True,
     )
-    # For line items other than marketable securities, set the total market value equal
-    # to the book value
+    # For line items other than marketable securities set
+    # (a) the total market value equal to the book value
     self.Acct_Level_Summary.loc[
         self.Acct_Level_Summary["MV"].isnull(), "MV"
     ] = self.Acct_Level_Summary["BV"]
+    # (b) the cost basis equal to the book value
+    self.Acct_Level_Summary.loc[
+        self.Acct_Level_Summary["total_cost_basis"].isnull(), "total_cost_basis"
+    ] = self.Acct_Level_Summary["BV"]
+
     self.Acct_Level_Summary["Net_Change_From_Market_Adjustment"] = (
-        self.Acct_Level_Summary["MV"] - self.Acct_Level_Summary["BV"]
+        self.Acct_Level_Summary["MV"] - self.Acct_Level_Summary["total_cost_basis"]
     )
     self.Acct_Level_Summary.sort_values(
         by=["acc_report_rank"], ascending=True, inplace=True
@@ -55,6 +62,7 @@ def get_account_level_balance_sheet(self):
             "Baseline_Value",
             "Net_Change_From_Operations",
             "BV",
+            "total_cost_basis",
             "Net_Change_From_Market_Adjustment",
             "MV",
         ]
@@ -92,9 +100,8 @@ def get_account_level_balance_sheet(self):
 
     # (5) Keep only rows with at least one non-NULL value in MV
     self.Acct_Level_Summary = self.Acct_Level_Summary[
-        (self.Acct_Level_Summary["Baseline_Value"] != 0)
-        | (self.Acct_Level_Summary["MV"] != 0)
-    ]
+        (self.Acct_Level_Summary["Baseline_Value"] > 0) |
+        (self.Acct_Level_Summary["MV"] != 0)]
 
     print("finished preparing Account-level report")
 
@@ -110,6 +117,7 @@ def get_account_type_level_balance_sheet(self):
         "Baseline_Value",
         "Net_Change_From_Operations",
         "BV",
+        "total_cost_basis",
         "Net_Change_From_Market_Adjustment",
         "MV",
     ].sum()
@@ -150,6 +158,7 @@ def get_overall_balance_sheet(self):
             "Baseline_Value",
             "Net_Change_From_Operations",
             "BV",
+            "total_cost_basis",
             "Net_Change_From_Market_Adjustment",
             "MV",
         ]

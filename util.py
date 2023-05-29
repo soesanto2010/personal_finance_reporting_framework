@@ -54,3 +54,27 @@ def download_data(
         return read_from_local_folder(local_path, local_filename, table)
     else:
         print("invalid input for data_input_source")
+
+def calc_base_qty_and_cost_basis(accounts_table, security_account):
+
+    """Determines the base quantity and base total cost basis for a given security at the baseline date"""
+
+    base_qty = list(accounts_table[accounts_table["acc_name"] == security_account]["acc_baseline_qty"])[0]
+    base_cost_basis = list(accounts_table[accounts_table["acc_name"] == security_account]["acc_baseline_cost_basis"])[0]
+
+    return base_qty, base_cost_basis
+
+def calc_delta_qty_and_cost_basis(transactions_table, security_account, date_key, start_date, end_date, acc_1, acc_2):
+
+    """Determines the change in quantity and total cost basis for a given security between the (i) start_date and (2) end_date"""
+
+    relevant_purchases = transactions_table[
+        (transactions_table['security_transaction_flag'] == 'Purchase') &
+        ((transactions_table[acc_1] == security_account) | (transactions_table[acc_2] == security_account)) &
+        (transactions_table[date_key] < end_date) &
+        (transactions_table[date_key] >= start_date)]
+
+    change_qty = relevant_purchases['tr_qty'].sum()
+    change_cost_basis = relevant_purchases['tr_amt'].sum()
+
+    return change_qty, change_cost_basis

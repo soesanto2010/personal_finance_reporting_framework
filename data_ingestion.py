@@ -3,7 +3,8 @@
 
 import pandas as pd
 from util import download_data
-
+from util import calc_base_qty_and_cost_basis, calc_delta_qty_and_cost_basis
+import numpy as np
 
 class ingestion_pipeline(object):
 
@@ -102,29 +103,33 @@ class ingestion_pipeline(object):
         self.Income_Picklist.drop(columns=["inc_ID"], inplace=True)
 
         # (2) Add depreciation expenses
-        Transactions_with_depex = self.add_fixture_depreciation_expense()
+        self.Transactions_with_depex = self.add_fixture_depreciation_expense()
         print("finished adding depreciation expenses")
 
+        # WIP: Add realized gain / losses
+        Transactions_with_gain_and_loss = self.add_realized_gain_and_loss()
+        print("finished adding realized gains and losses")
+
         # (3) Define Date-related variables
-        Transactions_with_depex["Tr_Date"] = pd.to_datetime(
-            Transactions_with_depex["tr_close_date"], format="%m/%d/%y"
+        Transactions_with_gain_and_loss["Tr_Date"] = pd.to_datetime(
+            Transactions_with_gain_and_loss["tr_close_date"], format="%m/%d/%y"
         )
-        Transactions_with_depex["Tr_Week"] = (
-            Transactions_with_depex["tr_close_date"].dt.isocalendar().week
+        Transactions_with_gain_and_loss["Tr_Week"] = (
+            Transactions_with_gain_and_loss["tr_close_date"].dt.isocalendar().week
         )
-        Transactions_with_depex["Tr_Month"] = Transactions_with_depex[
+        Transactions_with_gain_and_loss["Tr_Month"] = Transactions_with_gain_and_loss[
             "tr_close_date"
         ].dt.month
-        Transactions_with_depex["Tr_Year"] = (
-            Transactions_with_depex["tr_close_date"].dt.isocalendar().year
+        Transactions_with_gain_and_loss["Tr_Year"] = (
+            Transactions_with_gain_and_loss["tr_close_date"].dt.isocalendar().year
         )
-        Transactions_with_depex["Tr_Date"] = pd.to_datetime(
-            Transactions_with_depex["tr_close_date"]
+        Transactions_with_gain_and_loss["Tr_Date"] = pd.to_datetime(
+            Transactions_with_gain_and_loss["tr_close_date"]
         ).dt.date
 
         # (4) Keep only in-window transactions
-        Transactions_relevant_timeframe = Transactions_with_depex[
-            Transactions_with_depex["Tr_Date"] <= self.end_date
+        Transactions_relevant_timeframe = Transactions_with_gain_and_loss[
+            Transactions_with_gain_and_loss["Tr_Date"] <= self.end_date
         ]
 
         # (5) Add Account ID
@@ -225,3 +230,95 @@ class ingestion_pipeline(object):
         depex_agg["tr_expense"] = "Housing Expense - Depreciation"
 
         return self.Transactions.append(depex_agg, ignore_index=True)
+
+
+
+
+
+    def add_realized_gain_and_loss(self):
+
+        """This block of code takes as input a list of security sale transactions
+        and generates the equivalent line item corresponding to the gain or loss
+        by comparing the BV and MV at the time of sale"""
+
+        columns_to_keep = ["tr_impacted_acc_1", "tr_impacted_acc_2", "tr_amt", "tr_qty", "tr_close_date", "wash_sale"]
+        sale = self.Transactions_with_depex[self.Transactions_with_depex["security_transaction_flag"] == "Sale"][columns_to_keep]
+
+        Transactions_copy = self.Transactions_with_depex.copy()
+        Transactions_copy["Tr_Date"] = pd.to_datetime(Transactions_copy["tr_close_date"], format="%m/%d/%y")
+
+        # (2) Initialize the realized gain/loss entries
+        ls_cash_acc = []
+        ls_security_acc = []
+        ls_amount = []
+        ls_qty = []
+        ls_date = []
+        ls_type = []
+
+        # (3) Fill in the realized gain/loss expense for each item i in each security sale transaction
+        for i in list(range(0, len(sale))):
+
+            # (a) Extract the components
+            cash_account = sale.iloc[i, 0]
+            security_account = sale.iloc[i, 1]
+            sale_proceeds = sale.iloc[i, 2]
+            sale_qty = sale.iloc[i, 3]
+            sale_date = sale.iloc[i, 4]
+            sale_wash = sale.iloc[i, 5]
+
+            # (b) For wash sale, we only look at purchase transactions in the past week
+
+            if sale_wash == 1:
+                t0 = sale_date - pd.Timedelta(days=7)
+            else:
+                t0 = np.datetime64(self.start_date)
+
+            # (c) Get the base quantity and cost basis at inception
+            (base_qty, base_cost_basis) = calc_base_qty_and_cost_basis(self.Accounts, security_account)
+
+            # (d) Get the change in quantity and cost basis between the (i) start date and (ii) sale date
+            (change_qty, change_cost_basis) = calc_delta_qty_and_cost_basis(Transactions_copy, security_account, "Tr_Date", t0, sale_date, "tr_impacted_acc_1", "tr_impacted_acc_2")
+
+            # (e) Calculate the total cost basis at time of sale
+            if sale_wash == 1:
+                bv_per_share = change_cost_basis / change_qty
+            else:
+                bv_per_share = (base_cost_basis + change_cost_basis) / (base_qty + change_qty)
+            cost_basis_at_sale = bv_per_share * sale_qty
+
+            # (f) Calculate the realized gain (or loss)
+
+            if cost_basis_at_sale <= sale_proceeds:
+                type = 'Gain - Realized Investment Gain'
+                amount = sale_proceeds - cost_basis_at_sale
+            else:
+                type = 'Loss - Realized Investment Loss'
+                amount = cost_basis_at_sale - sale_proceeds
+
+            # (g) Create journal entries
+
+            ls_cash_acc += [cash_account]
+            ls_security_acc += [security_account]
+            ls_amount += [amount]
+            ls_qty += [sale_qty]
+            ls_date += [sale_date]
+            ls_type += [type]
+
+        gain_loss_table = pd.DataFrame({"tr_impacted_acc_1": ls_cash_acc,
+                                        "tr_amt": ls_amount,
+                                        "tr_qty": ls_qty,
+                                        "tr_close_date": ls_date,
+                                        "tr_impacted_acc_2": ls_type})
+
+        # (4) Define other columns for the gain / loss transactions
+        gain_loss_table["tr_description"] = "Realized Investment Gain / Loss"
+        gain_loss_table["tr_init_date"] = gain_loss_table["tr_close_date"]
+        gain_loss_table.loc[gain_loss_table['tr_impacted_acc_2'] == 'Gain - Realized Investment Gain', "tr_impacted_acc_1_sign"] = "[+ve]"
+        gain_loss_table.loc[gain_loss_table['tr_impacted_acc_2'] == 'Loss - Realized Investment Loss', "tr_impacted_acc_1_sign"] = "[-ve]"
+        gain_loss_table["tr_impacted_acc_2_sign"] = "[+ve]"
+        gain_loss_table.loc[gain_loss_table['tr_impacted_acc_2'] == 'Gain - Realized Investment Gain', "tr_income"] = "Investment - Realized Gains"
+        gain_loss_table.loc[gain_loss_table['tr_impacted_acc_2'] == 'Loss - Realized Investment Loss', "tr_expense"] = "Investment Expense - Realized Loss"
+
+        self.gain_loss_table = gain_loss_table.copy()
+
+        return self.Transactions_with_depex.append(gain_loss_table, ignore_index=True)
