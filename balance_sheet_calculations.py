@@ -3,17 +3,21 @@
 # account, (2) account type or (3) a balance sheet item (asset, liability, equity)
 # given a transaction dataset
 
+import pandas as pd
+
 
 def get_account_level_balance_sheet(self):
 
     """This block of code calculates the (1) start value, (2) end value and (3) delta
     for each account. For example, a specific bank account is a specific account"""
 
-    # (1) For each account, we determine the baseline and calculate the change in
-    # value between the start and end dates
+    # (1) For each account, determine (1) the baseline amount and (2) change in
+    # amount between the start and end dates
     unique_accounts = list(self.Accounts["acc_ID"].drop_duplicates())
     baseline_amount = self.Accounts.copy()
-    delta_amount = calculate_change(unique_accounts, self.Transactions, "tr_amt")
+    delta_amount = calculate_change(
+        unique_accounts, self.Transactions_preprocessed, "tr_amt"
+    )
     df = baseline_amount.merge(
         delta_amount, left_on=["acc_ID"], right_on=["Impacted_Acc_ID"], how="left"
     )
@@ -22,10 +26,10 @@ def get_account_level_balance_sheet(self):
     # (2) Calculate the total book value (BV) at the closing date
     df["BV"] = df["acc_baseline_value"] + df["Net_Change"]
 
-    # (3) Determine the total market value (MV), which is determined by the securities
-    # valuation module
+    # (3) Determine the total market value (MV) and total cost basis (CB), which are
+    # determined by the securities valuation module for marketable securities
     self.Acct_Level_Summary = df.merge(
-        self.securities[["acc_ID", "MV"]], on=["acc_ID"], how="left"
+        self.securities[["acc_ID", "MV", "CB"]], on=["acc_ID"], how="left"
     )
     self.Acct_Level_Summary.rename(
         columns={
@@ -34,31 +38,30 @@ def get_account_level_balance_sheet(self):
         },
         inplace=True,
     )
-    # For line items other than marketable securities, set the total market value equal
-    # to the book value
+    # For line items other than marketable securities set:
+    # (a) the total market value equal to the book value
     self.Acct_Level_Summary.loc[
         self.Acct_Level_Summary["MV"].isnull(), "MV"
     ] = self.Acct_Level_Summary["BV"]
+    # (b) the cost basis equal to the book value
+    self.Acct_Level_Summary.loc[
+        self.Acct_Level_Summary["CB"].isnull(), "CB"
+    ] = self.Acct_Level_Summary["BV"]
+
     self.Acct_Level_Summary["Net_Change_From_Market_Adjustment"] = (
         self.Acct_Level_Summary["MV"] - self.Acct_Level_Summary["BV"]
     )
     self.Acct_Level_Summary.sort_values(
         by=["acc_report_rank"], ascending=True, inplace=True
     )
-    self.Acct_Level_Summary = self.Acct_Level_Summary[
-        [
-            "acc_A_L_E_classification",
-            "acc_A_L_E_sign",
-            "acc_type",
-            "acc_ID",
-            "acc_name",
-            "Baseline_Value",
-            "Net_Change_From_Operations",
-            "BV",
-            "Net_Change_From_Market_Adjustment",
-            "MV",
-        ]
-    ]
+    columns_to_keep = [
+        "acc_A_L_E_classification",
+        "acc_A_L_E_sign",
+        "acc_type",
+        "acc_ID",
+        "acc_name",
+    ] + self.balance_sheet_num_columns
+    self.Acct_Level_Summary = self.Acct_Level_Summary[columns_to_keep]
 
     # (4) Calculate unrealized gain / loss due to market valuation
     Unrealized_gain = self.Acct_Level_Summary[
@@ -90,11 +93,53 @@ def get_account_level_balance_sheet(self):
         Unrealized_loss * -1
     )
 
-    # (5) Keep only rows with at least one non-NULL value in MV
+    # (5) Split the revenue account items into (a) retained earnings and
+    # (b) unrealized gain / loss
+    unchanged_accounts = self.Acct_Level_Summary.loc[
+        (self.Acct_Level_Summary["acc_A_L_E_classification"] != "Equity")
+        | (self.Acct_Level_Summary["acc_name"].str.contains("Unrealized"))
+    ]
+
+    accounts_to_merge = self.Acct_Level_Summary.loc[
+        (self.Acct_Level_Summary["acc_A_L_E_classification"] == "Equity")
+        & (~self.Acct_Level_Summary["acc_name"].str.contains("Unrealized"))
+    ]
+    accounts_to_merge.loc[accounts_to_merge["acc_A_L_E_sign"] == "[+ve]", "Vector"] = 1
+    accounts_to_merge.loc[accounts_to_merge["acc_A_L_E_sign"] == "[-ve]", "Vector"] = -1
+
+    # Mutiply magnitude by either +1 (for revenue / gains) or -1 for (expense / loss)
+    for i in self.balance_sheet_num_columns:
+        accounts_to_merge[i] = accounts_to_merge[i] * accounts_to_merge["Vector"]
+
+    accounts_to_merge["acc_A_L_E_sign"] = "[+ve]"
+    accounts_to_merge["acc_type"] = "Retained Earnings"
+
+    self.acc_ID_for_retained_earnings = accounts_to_merge["acc_ID"].min()
+
+    accounts_to_merge["acc_ID"] = self.acc_ID_for_retained_earnings
+    accounts_to_merge["acc_name"] = "Retained Earnings"
+    retained_earnings = accounts_to_merge.groupby(
+        [
+            "acc_A_L_E_classification",
+            "acc_A_L_E_sign",
+            "acc_type",
+            "acc_ID",
+            "acc_name",
+        ],
+        as_index=False,
+    )[self.balance_sheet_num_columns].sum()
+
+    self.Acct_Level_Summary = pd.concat(
+        [unchanged_accounts, retained_earnings], ignore_index=True
+    )
+
+    # (6) Keep only rows with at least one non-NULL value in MV
     self.Acct_Level_Summary = self.Acct_Level_Summary[
-        (self.Acct_Level_Summary["Baseline_Value"] != 0)
+        (self.Acct_Level_Summary["Baseline_Value"] > 0)
         | (self.Acct_Level_Summary["MV"] != 0)
     ]
+
+    self.Acct_Level_Summary.sort_values(by=["acc_ID"], ascending=True, inplace=True)
 
     print("finished preparing Account-level report")
 
@@ -106,19 +151,17 @@ def get_account_type_level_balance_sheet(self):
 
     self.Class_Level_Summary = self.Acct_Level_Summary.groupby(
         ["acc_A_L_E_classification", "acc_A_L_E_sign", "acc_type"], as_index=False
-    )[
-        "Baseline_Value",
-        "Net_Change_From_Operations",
-        "BV",
-        "Net_Change_From_Market_Adjustment",
-        "MV",
-    ].sum()
+    )[self.balance_sheet_num_columns].sum()
     Acc_type_priority = self.Accounts.groupby("acc_type", as_index=False)[
         "acc_report_rank"
     ].min()
     self.Class_Level_Summary = self.Class_Level_Summary.merge(
         Acc_type_priority, on="acc_type", how="left"
     )
+
+    self.Class_Level_Summary.loc[
+        self.Class_Level_Summary["acc_type"] == "Retained Earnings", "acc_report_rank"
+    ] = self.acc_ID_for_retained_earnings
     self.Class_Level_Summary.sort_values(
         by=["acc_report_rank"], ascending=True, inplace=True
     )
@@ -146,13 +189,7 @@ def get_overall_balance_sheet(self):
     Parts["MV"] = Parts["Vector"] * Parts["MV"]
 
     self.BS_Level_Summary = Parts.groupby("acc_A_L_E_classification", as_index=False)[
-        [
-            "Baseline_Value",
-            "Net_Change_From_Operations",
-            "BV",
-            "Net_Change_From_Market_Adjustment",
-            "MV",
-        ]
+        self.balance_sheet_num_columns
     ].sum()
     BS_Item_Priority = self.Accounts.groupby(
         "acc_A_L_E_classification", as_index=False
@@ -200,7 +237,7 @@ def calculate_change(S, Transactions, metric):
     )
 
     # (3) Append amounts coming from both sides
-    df = df_Acc_1.append(df_Acc_2, ignore_index=True)
+    df = pd.concat([df_Acc_1, df_Acc_2], ignore_index=True)
 
     # (4) Calculate net change
     df.loc[df["Sign"] == "[+ve]", "Vector"] = 1

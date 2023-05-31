@@ -17,6 +17,7 @@ from data_ingestion import ingestion_pipeline
 from security_valuation import (
     get_quantities_on_closing_date,
     get_market_values_on_closing_date,
+    get_cost_basis_on_closing_date,
 )
 from balance_sheet_calculations import (
     get_account_level_balance_sheet,
@@ -24,7 +25,6 @@ from balance_sheet_calculations import (
     get_overall_balance_sheet,
 )
 from income_statement_calculations import (
-    calculate_financial_KPIs,
     generate_profit_and_loss_statement,
 )
 from run_qc_tests import (
@@ -101,6 +101,7 @@ def main():
     # (b) Determine the total market values of securities on closing date
     get_quantities_on_closing_date(datasets)
     get_market_values_on_closing_date(datasets)
+    get_cost_basis_on_closing_date(datasets)
 
     # (c) Get balance sheet level items
     get_account_level_balance_sheet(datasets)
@@ -110,15 +111,12 @@ def main():
     # (d) Get income statement by period
     generate_profit_and_loss_statement(datasets)
 
-    # (e) Ratio calculations
-    calculate_financial_KPIs(datasets)
-
-    # (f) Run QC tests
+    # (e) Run QC tests
     verify_accounting_equation(datasets)
     ensure_closing_date_is_later_than_initiation_dates(datasets)
     ensure_no_non_standard_account_names(datasets)
 
-    # (g) Generate output files
+    # (f) Generate output files
     generate_csv_outputs(datasets)
 
     print("run completed")

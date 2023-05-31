@@ -3,6 +3,8 @@
 import yfinance as yf
 import pandas as pd
 from balance_sheet_calculations import calculate_change
+from util import calc_base_qty_and_cost_basis, calc_delta_qty_and_cost_basis
+import numpy as np
 
 
 def get_quantities_on_closing_date(self):
@@ -31,7 +33,9 @@ def get_quantities_on_closing_date(self):
     ]
 
     # (2) Calculate the change in quantities based on trade of the securities
-    delta_quantity = calculate_change(security_accounts, self.Transactions, "tr_qty")
+    delta_quantity = calculate_change(
+        security_accounts, self.Transactions_preprocessed, "tr_qty"
+    )
     self.securities = baseline_quantity.merge(
         delta_quantity, left_on=["acc_ID"], right_on=["Impacted_Acc_ID"], how="left"
     )
@@ -89,6 +93,49 @@ def get_market_values_on_closing_date(self):
     self.securities["MV"] = self.securities["MV_pre_commisions"] * (
         1 - self.securities["acc_security_sale_commision_percentage"]
     )
+
+
+def get_cost_basis_on_closing_date(self):
+
+    """Adds to the securities table CB, the total cost basis for all shares (in USD)"""
+
+    # (1) Pull the relevant datasets
+    subset_security_account = self.securities[["acc_name", "End_Quantity"]]
+
+    # (2) For each security, we determine the:
+    # (a) baseline qty
+    # (b) baseline total cost basis
+    # (c) change in qty
+    # (d) change in total cost basis
+    # We then use these to calculate the qty and total cost basis at closing
+
+    for i in list(range(0, len(self.securities))):
+
+        # (a) Extract the components
+        security_account = subset_security_account.iloc[i, 0]
+        end_quantity = subset_security_account.iloc[i, 1]
+
+        # (b) Get the base quantity and cost basis at inception
+        (base_qty, base_cost_basis) = calc_base_qty_and_cost_basis(
+            self.Accounts, security_account
+        )
+
+        # (c) Get the change in quantity and cost basis between the (i) start date
+        # and (ii) closing date
+        (change_qty, change_cost_basis) = calc_delta_qty_and_cost_basis(
+            self.Transactions,
+            security_account,
+            "Tr_Date",
+            np.datetime64(self.start_date),
+            np.datetime64(self.end_date),
+        )
+
+        # (d) Calculate cost basis per share (cb) and total cost basis at closing (CB)
+        cb = (base_cost_basis + change_cost_basis) / (base_qty + change_qty)
+        CB = cb * end_quantity
+
+        # (e) Insert the total cost basis into the table
+        self.securities.loc[self.securities["acc_name"] == security_account, "CB"] = CB
 
 
 def get_security_value_using_yfinance(ticker_key, date_key, max_retries, price_metric):
