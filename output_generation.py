@@ -14,9 +14,7 @@ def generate_csv_outputs(self):
     self.Acct_Level_Summary.to_excel(writer, sheet_name="Account")
     self.P_L_statement_overall.to_excel(writer, sheet_name="monthly_P_L_overall")
     self.P_L_statement_deep_dive.to_excel(writer, sheet_name="monthly_P_L_deep_dive")
-    self.Summary_KPI.to_excel(writer, sheet_name="Summary_KPI")
     self.securities.to_excel(writer, sheet_name="Security_valuations")
-    self.Transactions.to_excel(writer, sheet_name='transactions')
 
     # Close the Pandas Excel writer and output the Excel file.
     writer.save()
