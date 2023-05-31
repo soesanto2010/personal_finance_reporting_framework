@@ -22,11 +22,11 @@ def generate_profit_and_loss_statement(self):
     ]
 
     # (1) Filter to only transactions data that has revenue and/or expense recognition
-    transactions_with_revenue_recognition = self.Transactions[
-        ~self.Transactions["tr_income"].isnull()
+    transactions_with_revenue_recognition = self.Transactions_preprocessed[
+        ~self.Transactions_preprocessed["tr_income"].isnull()
     ]
-    transactions_with_expense_recognition = self.Transactions[
-        ~self.Transactions["tr_expense"].isnull()
+    transactions_with_expense_recognition = self.Transactions_preprocessed[
+        ~self.Transactions_preprocessed["tr_expense"].isnull()
     ]
 
     # (2) Add the P&L IDs
@@ -65,7 +65,7 @@ def generate_profit_and_loss_statement(self):
     subset_expenses.loc[subset_expenses["P_L_offset_flag"] == 1, "type"] = "(1) revenue"
 
     # (6) Append the revenue and expense statements together
-    subset = subset_income.append(subset_expenses, ignore_index=True)
+    subset = pd.concat([subset_income, subset_expenses], ignore_index=True)
 
     # (7) Get the remapped secondary P&L category
     subset.loc[
