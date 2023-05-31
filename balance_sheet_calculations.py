@@ -26,7 +26,7 @@ def get_account_level_balance_sheet(self):
     # (2) Calculate the total book value (BV) at the closing date
     df["BV"] = df["acc_baseline_value"] + df["Net_Change"]
 
-    # (3) Determine the total market value (MV) and total cost basis (CB), which is
+    # (3) Determine the total market value (MV) and total cost basis (CB), which are
     # determined by the securities valuation module for marketable securities
     self.Acct_Level_Summary = df.merge(
         self.securities[["acc_ID", "MV", "CB"]], on=["acc_ID"], how="left"
