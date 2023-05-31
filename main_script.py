@@ -47,7 +47,7 @@ default_start_date = "2021-06-25 00:00:00"
 default_end_date = None
 
 default_timezone = "UTC"
-default_max_pull_retries = 1
+default_max_pull_retries = 5
 
 # default type of price for measuring the value of securities. Options include
 # {Open, High, Low, Close, Adj Close}
