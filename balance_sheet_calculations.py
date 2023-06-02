@@ -38,6 +38,12 @@ def get_account_level_balance_sheet(self):
         },
         inplace=True,
     )
+
+    # Certain assets require market values to come from the accounts table (e.g. cars):
+    self.Acct_Level_Summary.loc[
+        self.Acct_Level_Summary["acc_name"].isin(self.asset_list_to_use_fallback), "MV"
+    ] = self.Acct_Level_Summary["acc_security_value_fallback"]
+
     # For line items other than marketable securities set:
     # (a) the total market value equal to the book value
     self.Acct_Level_Summary.loc[
