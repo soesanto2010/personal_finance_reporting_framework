@@ -27,7 +27,7 @@ def output_upload_to_cloud(self):
     self.Acct_Level_Summary['publish_date'] = self.end_date
 
     # (2) Upload to BigQuery
-    load_to_bigquery(self.Acct_Level_Summary, self.gcp_project, self.gcp_dataset, "tbl_"+self.output_publish_report+"_balance_sheet", "overwrite")
+    load_to_bigquery(self.Acct_Level_Summary, self.gcp_project, self.gcp_dataset, "tbl_"+self.output_publish_report+"_balance_sheet", "append")
     load_to_bigquery(self.time_trend, self.gcp_project, self.gcp_dataset, "tbl_dataset_income_statement", "overwrite")
 
     self.securities.rename(
