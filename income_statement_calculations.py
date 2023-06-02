@@ -14,6 +14,7 @@ def generate_profit_and_loss_statement(self):
     columns_to_keep = [
         "Tr_Year",
         "Tr_Month",
+        "acc_name",
         "P_L_primary_cat",
         "P_L_secondary_cat",
         "P_L_secondary_cat_after_offset",
@@ -46,6 +47,8 @@ def generate_profit_and_loss_statement(self):
     subset_expenses = self.transactions_with_expense_IDs[
         ~self.transactions_with_expense_IDs["P_L_primary_cat"].isna()
     ]
+    subset_expenses.rename(columns={"exp_name": "acc_name"}, inplace=True)
+    subset_income.rename(columns={"inc_name": "acc_name"}, inplace=True)
 
     # (4) Keep only the required columns
     subset_income = subset_income[columns_to_keep]
@@ -74,11 +77,12 @@ def generate_profit_and_loss_statement(self):
     ] = subset["P_L_secondary_cat"]
 
     # (8) Group the line items by period
-    time_trend = subset.groupby(
+    self.time_trend = subset.groupby(
         [
             "Tr_Year",
             "Tr_Month",
             "type",
+            "acc_name",
             "P_L_primary_cat",
             "P_L_secondary_cat",
             "P_L_secondary_cat_after_offset",
@@ -89,14 +93,14 @@ def generate_profit_and_loss_statement(self):
     # (9) Create pivot table summaries (one based on a higher-level, and
     # the other based on a deep dive)
     self.P_L_statement_overall = pd.pivot_table(
-        time_trend,
+        self.time_trend,
         index=["type", "P_L_primary_cat", "P_L_secondary_cat_after_offset"],
         columns=["Tr_Year", "Tr_Month"],
         values=["amount"],
         aggfunc=[np.sum],
     )
     self.P_L_statement_deep_dive = pd.pivot_table(
-        time_trend,
+        self.time_trend,
         index=["type", "P_L_primary_cat", "P_L_secondary_cat"],
         columns=["Tr_Year", "Tr_Month"],
         values=["amount"],
