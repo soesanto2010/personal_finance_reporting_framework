@@ -19,6 +19,8 @@ class ingestion_pipeline(object):
         max_pull_retries,
         security_price_metric,
         data_input_source,
+        output_publish,
+        output_publish_report,
         path,
         filename,
         gcp_project,
@@ -32,11 +34,14 @@ class ingestion_pipeline(object):
         self.max_pull_retries = max_pull_retries
         self.security_price_metric = security_price_metric
         self.data_input_source = data_input_source
+        self.output_publish = output_publish
+        self.output_publish_report = output_publish_report
         self.path = path
         self.filename = filename
         self.gcp_project = gcp_project
         self.gcp_dataset = gcp_dataset
         self.Days_Ellapsed = (end_date - start_date).days
+        self.asset_list_to_use_fallback = ["PP&E - Car"]
         self.balance_sheet_num_columns = [
             "Baseline_Value",
             "Net_Change_From_Operations",

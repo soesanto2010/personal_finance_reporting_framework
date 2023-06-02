@@ -32,7 +32,7 @@ from run_qc_tests import (
     ensure_closing_date_is_later_than_initiation_dates,
     ensure_no_non_standard_account_names,
 )
-from output_generation import generate_csv_outputs
+from output_generation import generate_csv_outputs, output_upload_to_cloud
 
 #####################################################################################
 
@@ -55,6 +55,8 @@ default_security_price_metric = "Adj Close"
 
 # default source for datasets is 'cloud', but 'local' can be used during dev ops
 default_data_input_source = "cloud"
+default_output_publish = "cloud"
+default_output_publish_report = "WBR"
 
 # Cloud path
 default_gcp_project = "vsoesanto-gcp-finance-prod"
@@ -91,6 +93,8 @@ def main():
         max_pull_retries=default_max_pull_retries,
         security_price_metric=default_security_price_metric,
         data_input_source=default_data_input_source,
+        output_publish=default_output_publish,
+        output_publish_report=default_output_publish_report,
         path=default_path,
         filename=default_filename,
         gcp_project=default_gcp_project,
@@ -117,7 +121,13 @@ def main():
     ensure_no_non_standard_account_names(datasets)
 
     # (f) Generate output files
-    generate_csv_outputs(datasets)
+    if datasets.output_publish == 'cloud':
+        output_upload_to_cloud(datasets)
+    elif datasets.output_publish == 'local':
+        generate_csv_outputs(datasets)
+    else:
+        print("invalid input for output_publish")
+
 
     print("run completed")
 
