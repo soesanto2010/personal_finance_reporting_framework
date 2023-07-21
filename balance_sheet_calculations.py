@@ -66,6 +66,8 @@ def get_account_level_balance_sheet(self):
         "acc_type",
         "acc_ID",
         "acc_name",
+        "acc_def_inc_tax_rate",
+        "acc_pre_tax_acct",
     ] + self.balance_sheet_num_columns
     self.Acct_Level_Summary = self.Acct_Level_Summary[columns_to_keep]
 
@@ -104,11 +106,13 @@ def get_account_level_balance_sheet(self):
     unchanged_accounts = self.Acct_Level_Summary.loc[
         (self.Acct_Level_Summary["acc_A_L_E_classification"] != "Equity")
         | (self.Acct_Level_Summary["acc_name"].str.contains("Unrealized"))
+        | (self.Acct_Level_Summary["acc_name"] == "Expense - Deferred Taxes (Est)")
     ]
 
     accounts_to_merge = self.Acct_Level_Summary.loc[
         (self.Acct_Level_Summary["acc_A_L_E_classification"] == "Equity")
         & (~self.Acct_Level_Summary["acc_name"].str.contains("Unrealized"))
+        & (self.Acct_Level_Summary["acc_name"] != "Expense - Deferred Taxes (Est)")
     ]
     accounts_to_merge.loc[accounts_to_merge["acc_A_L_E_sign"] == "[+ve]", "Vector"] = 1
     accounts_to_merge.loc[accounts_to_merge["acc_A_L_E_sign"] == "[-ve]", "Vector"] = -1
@@ -131,6 +135,8 @@ def get_account_level_balance_sheet(self):
             "acc_type",
             "acc_ID",
             "acc_name",
+            "acc_def_inc_tax_rate",
+            "acc_pre_tax_acct",
         ],
         as_index=False,
     )[self.balance_sheet_num_columns].sum()
@@ -139,10 +145,71 @@ def get_account_level_balance_sheet(self):
         [unchanged_accounts, retained_earnings], ignore_index=True
     )
 
-    # (6) Keep only rows with at least one non-NULL value in MV
-    self.Acct_Level_Summary = self.Acct_Level_Summary[
-        (self.Acct_Level_Summary["Baseline_Value"] > 0)
-        | (self.Acct_Level_Summary["MV"] != 0)
+    # (6) Add "unrealized" deferred tax statements based on theoretical distribution
+    # of pre-tax accounts and sale of assets at time of closing
+    subset_temp = self.Acct_Level_Summary[
+        self.Acct_Level_Summary["acc_def_inc_tax_rate"] > 0
+    ]
+
+    # (a) For pre-tax accounts like HSA and 401(k), disbursement is taxed with zero
+    # cost basis since we're contributing to it with pre-tax dollars
+    tax_deferred_accts = subset_temp[subset_temp["acc_pre_tax_acct"] == 1]
+    tax_deferred_accts["deferred_tax_amount"] = (
+        tax_deferred_accts["acc_def_inc_tax_rate"] * tax_deferred_accts["MV"]
+    )
+    deferred_taxes_from_dist_of_tax_deferred_accts = tax_deferred_accts[
+        "deferred_tax_amount"
+    ].sum()
+
+    # (b) For non-pre tax accounts like stocks outside of retirement accounts,
+    # disbursement is taxed with reference to the weighted-average cost basis
+    non_tax_deferred_accts = subset_temp[subset_temp["acc_pre_tax_acct"] == 0]
+    non_tax_deferred_accts["deferred_tax_amount"] = non_tax_deferred_accts[
+        "acc_def_inc_tax_rate"
+    ] * (non_tax_deferred_accts["MV"] - non_tax_deferred_accts["CB"])
+    deferred_taxes_from_dist_of_non_tax_deferred_accts = max(
+        0, non_tax_deferred_accts["deferred_tax_amount"].sum()
+    )
+
+    # (c) Creating the additional deferred tax accounts
+    deferred_taxes_line_item = self.Accounts[
+        self.Accounts["acc_name"].isin(
+            ["Deferred Taxes Payable", "Expense - Deferred Taxes (Est)"]
+        )
+    ]
+    deferred_taxes_line_item["MV"] = (
+        deferred_taxes_from_dist_of_tax_deferred_accts
+        + deferred_taxes_from_dist_of_non_tax_deferred_accts
+    )
+    deferred_taxes_line_item["BV"] = 0
+    deferred_taxes_line_item["CB"] = 0
+    deferred_taxes_line_item["Net_Change_From_Market_Adjustment"] = 0
+    deferred_taxes_line_item["Baseline_Value"] = 0
+    deferred_taxes_line_item["Net_Change_From_Operations"] = 0
+
+    # (d) Append and combine entries
+    agg_accounts = pd.concat([self.Acct_Level_Summary, deferred_taxes_line_item])
+    final_output = agg_accounts.groupby(
+        [
+            "acc_A_L_E_classification",
+            "acc_A_L_E_sign",
+            "acc_type",
+            "acc_ID",
+            "acc_name",
+        ],
+        as_index=False,
+    )[
+        "Baseline_Value",
+        "Net_Change_From_Operations",
+        "BV",
+        "CB",
+        "Net_Change_From_Market_Adjustment",
+        "MV",
+    ].sum()
+
+    # (7) Keep only rows with at least one non-NULL value in MV
+    self.Acct_Level_Summary = final_output[
+        (final_output["Baseline_Value"] > 0) | (final_output["MV"] != 0)
     ]
 
     self.Acct_Level_Summary.sort_values(by=["acc_ID"], ascending=True, inplace=True)
