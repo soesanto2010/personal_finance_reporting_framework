@@ -41,6 +41,15 @@ from output_generation import generate_csv_outputs, output_upload_to_cloud
 # start date for tracking expenses
 default_start_date = "2021-06-25 00:00:00"
 
+# start date for deferred tax transactions should be the beginning of Jan for the year
+# for which the next tax return is due. This parameter is updated yearly (around April)
+# after a tax return is filed
+# Example # 1: if we close on Feb 1 2023, the next tax filing is for 2022 income:
+# Therefore, transactions from Jan 1 2022 is relevant
+# Example # 2: if we close on June 1 2023, the next tax filing is for 2023 income.
+# Therefore, transactions from Jan 1 2023 is relevant
+default_start_date_for_deferred_tax_transactions = "2023-01-01 00:00:00"
+
 # end date for tracking expenses
 # (enter 'YYYY-MM-DD HH:MM:SS' to close on a specific(past) date; otherwise, enter
 # None to close on the current datetime)
@@ -71,6 +80,9 @@ default_filename = "Data Structure.xlsx"
 # Part 3: Determine the start & end dates for the run
 
 Start_Date = pd.Timestamp(default_start_date, tz=default_timezone)
+Start_Date_def_tax = pd.Timestamp(
+    default_start_date_for_deferred_tax_transactions, tz=default_timezone
+)
 
 if default_end_date is None:
     End_Date = pd.Timestamp(pd.Timestamp.now(), tz=default_timezone)
@@ -88,6 +100,7 @@ def main():
     # without additional cleaning)
     datasets = ingestion_pipeline(
         start_date=Start_Date,
+        start_date_def_tax=Start_Date_def_tax,
         end_date=End_Date,
         timezone=default_timezone,
         max_pull_retries=default_max_pull_retries,
@@ -121,13 +134,12 @@ def main():
     ensure_no_non_standard_account_names(datasets)
 
     # (f) Generate output files
-    if datasets.output_publish == 'cloud':
+    if datasets.output_publish == "cloud":
         output_upload_to_cloud(datasets)
-    elif datasets.output_publish == 'local':
+    elif datasets.output_publish == "local":
         generate_csv_outputs(datasets)
     else:
         print("invalid input for output_publish")
-
 
     print("run completed")
 
