@@ -3,7 +3,11 @@
 
 import pandas as pd
 from util import download_data
-from util import calc_base_qty_and_cost_basis, calc_delta_qty_and_cost_basis
+from util import (
+    calc_base_qty_and_cost_basis,
+    calc_delta_qty_and_cost_basis,
+    generate_deferred_tax_statements,
+)
 import numpy as np
 
 
@@ -14,6 +18,7 @@ class ingestion_pipeline(object):
     def __init__(
         self,
         start_date,
+        start_date_def_tax,
         end_date,
         timezone,
         max_pull_retries,
@@ -29,6 +34,7 @@ class ingestion_pipeline(object):
         """Initializes Pipeline object with shared state and inputs"""
         # (1) Run configs
         self.start_date = start_date
+        self.start_date_def_tax = start_date_def_tax
         self.end_date = end_date
         self.timezone = timezone
         self.max_pull_retries = max_pull_retries
@@ -127,29 +133,42 @@ class ingestion_pipeline(object):
         print("finished adding depreciation expenses")
 
         # (4) Add realized gain / losses
-        Transactions_with_gain_and_loss = self.add_realized_gain_and_loss()
+        self.Transactions_with_gain_and_loss = self.add_realized_gain_and_loss()
         print("finished adding realized gains and losses")
 
-        # (5) Define Date-related variables
-        Transactions_with_gain_and_loss["Tr_Week"] = (
-            Transactions_with_gain_and_loss["tr_close_date"].dt.isocalendar().week
+        # (5) Add deferred tax statements based on realized income
+        self.Transactions_with_deferred_tax_statements = (
+            self.add_deferred_tax_transactions_based_on_realized_income()
         )
-        Transactions_with_gain_and_loss["Tr_Month"] = Transactions_with_gain_and_loss[
-            "tr_close_date"
-        ].dt.month
-        Transactions_with_gain_and_loss["Tr_Year"] = (
-            Transactions_with_gain_and_loss["tr_close_date"].dt.isocalendar().year
+        print("finish adding deferred tax transactions based on realized income")
+
+        # (6) Define Date-related variables
+        self.Transactions_with_deferred_tax_statements["Tr_Week"] = (
+            self.Transactions_with_deferred_tax_statements["tr_close_date"]
+            .dt.isocalendar()
+            .week
         )
-        Transactions_with_gain_and_loss["Tr_Date"] = pd.to_datetime(
-            Transactions_with_gain_and_loss["tr_close_date"]
+        self.Transactions_with_deferred_tax_statements[
+            "Tr_Month"
+        ] = self.Transactions_with_deferred_tax_statements["tr_close_date"].dt.month
+        self.Transactions_with_deferred_tax_statements["Tr_Year"] = (
+            self.Transactions_with_deferred_tax_statements["tr_close_date"]
+            .dt.isocalendar()
+            .year
+        )
+        self.Transactions_with_deferred_tax_statements["Tr_Date"] = pd.to_datetime(
+            self.Transactions_with_deferred_tax_statements["tr_close_date"]
         ).dt.date
 
-        # (6) Keep only in-window transactions
-        Transactions_relevant_timeframe = Transactions_with_gain_and_loss[
-            Transactions_with_gain_and_loss["Tr_Date"] <= self.end_date
-        ]
+        # (7) Keep only in-window transactions
+        Transactions_relevant_timeframe = (
+            self.Transactions_with_deferred_tax_statements[
+                self.Transactions_with_deferred_tax_statements["Tr_Date"]
+                <= self.end_date
+            ]
+        )
 
-        # (7) Add Account ID
+        # (8) Add Account ID
         Transactions_temp_1 = Transactions_relevant_timeframe.merge(
             self.Accounts.iloc[:, 0:2],
             left_on="tr_impacted_acc_1",
@@ -164,7 +183,7 @@ class ingestion_pipeline(object):
             suffixes=("_1", "_2"),
         )
 
-        # (8) Rename columns
+        # (9) Rename columns
         self.Transactions_temp_2.rename(
             columns={
                 "acc_ID_1": "Impacted_Acc_ID_1",
@@ -177,7 +196,7 @@ class ingestion_pipeline(object):
             inplace=True,
         )
 
-        # (9) Keep only relevant columns
+        # (10) Keep only relevant columns
         self.Transactions_preprocessed = self.Transactions_temp_2.drop(
             columns=[
                 "acc_name_1",
@@ -387,4 +406,73 @@ class ingestion_pipeline(object):
 
         return pd.concat(
             [self.Transactions_with_depex, gain_loss_table], ignore_index=True
+        )
+
+    def add_deferred_tax_transactions_based_on_realized_income(self):
+
+        """This block of code takes as input a list of realized transactions that
+        would cause a tax liability and creates the necessary deferred tax statements
+        based on those transactions"""
+
+        # (1) Pull the relevant datasets
+        df = self.Transactions_with_gain_and_loss.copy()
+        deferred_tax_base_dataset = df[
+            (df["tr_close_date"] >= np.datetime64(self.start_date_def_tax))
+            & (df["tr_close_date"] <= np.datetime64(self.end_date))
+            &
+            # Exclude dividends / interests / capital gains going into 401(k) accounts
+            (~df["tr_impacted_acc_1"].str.contains("Index Funds"))
+            & (~df["tr_impacted_acc_2"].str.contains("Index Funds"))
+            & (df["tr_impacted_acc_1"] != "A/R - Others")
+        ]
+
+        # (2) Pull in accounts that trigger deferred tax transactions
+        revenue_streams_with_deferred_taxes = self.Income_Picklist[
+            self.Income_Picklist["inc_deferred_tax_flag"] == 1
+        ]
+        revenue_streams_with_deferred_taxes.rename(
+            columns={
+                "inc_name": "acc_name",
+                "inc_deferred_tax_federal_tax_rate": "federal_tax_rate",
+                "inc_deferred_tax_state_tax_rate": "state_tax_rate",
+                "inc_deferred_tax_FICA_tax_rate": "FICA_tax_rate",
+            },
+            inplace=True,
+        )
+        expense_streams_with_deferred_taxes = self.Expense_Picklist[
+            self.Expense_Picklist["exp_deferred_tax_flag"] == 1
+        ]
+        expense_streams_with_deferred_taxes.rename(
+            columns={
+                "exp_name": "acc_name",
+                "exp_deferred_tax_federal_tax_rate": "federal_tax_rate",
+                "exp_deferred_tax_state_tax_rate": "state_tax_rate",
+                "exp_deferred_tax_FICA_tax_rate": "FICA_tax_rate",
+            },
+            inplace=True,
+        )
+        accounts_with_deferred_taxes = pd.concat(
+            [revenue_streams_with_deferred_taxes, expense_streams_with_deferred_taxes]
+        )
+
+        # (3) Create the deferred tax transactions
+        relevant_subset = generate_deferred_tax_statements(
+            deferred_tax_base_dataset, accounts_with_deferred_taxes
+        )
+        def_tax_transactions = relevant_subset[
+            [
+                "tr_description",
+                "tr_amt",
+                "tr_init_date",
+                "tr_close_date",
+                "tr_impacted_acc_1",
+                "tr_impacted_acc_1_sign",
+                "tr_impacted_acc_2",
+                "tr_impacted_acc_2_sign",
+            ]
+        ]
+
+        return pd.concat(
+            [self.Transactions_with_gain_and_loss, def_tax_transactions],
+            ignore_index=True,
         )
