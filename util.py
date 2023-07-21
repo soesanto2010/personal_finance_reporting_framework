@@ -95,3 +95,74 @@ def calc_delta_qty_and_cost_basis(
     change_cost_basis = relevant_purchases["tr_amt"].sum()
 
     return change_qty, change_cost_basis
+
+
+def generate_deferred_tax_statements(transactions_to_convert, deferred_accounts):
+
+    """Generate deferred tax statements"""
+
+    # (1) Pull the set of transactions that would trigger deferred tax liability
+    income = transactions_to_convert.merge(
+        deferred_accounts, left_on="tr_income", right_on="acc_name", how="left"
+    )
+    income = income[income["inc_deferred_tax_flag"] == 1]
+    expenses = transactions_to_convert.merge(
+        deferred_accounts, left_on="tr_expense", right_on="acc_name", how="left"
+    )
+    expenses = expenses[expenses["exp_deferred_tax_flag"] == 1]
+    expenses["tr_amt"] = expenses["tr_amt"] * -1
+    agg_transactions = pd.concat([income, expenses])
+
+    # (2) For transactions that cannot offset together, group them directly:
+    non_offsetting_transactions = agg_transactions[
+        agg_transactions["tr_description"] != "Realized Investment Gain / Loss"
+    ]
+    non_offsetting_transactions = non_offsetting_transactions.groupby(
+        ["tr_description", "federal_tax_rate", "state_tax_rate", "FICA_tax_rate"],
+        as_index=False,
+    )["tr_amt"].sum()
+
+    # (3) For transactions that can offset one another in each year, like
+    # capital gains/loss and business profits/losses), we (a) offset them in each year,
+    # and (b) set the net to 0 if the net is negative (since the net loss cannot be used
+    # to offset non-offsetting income or ordinary income
+    offseting_transactions = agg_transactions[
+        agg_transactions["tr_description"] == "Realized Investment Gain / Loss"
+    ]
+    offseting_transactions["Tr_Year"] = (
+        offseting_transactions["tr_close_date"].dt.isocalendar().year
+    )
+    offsetting_transactions_grouped = offseting_transactions.groupby(
+        [
+            "tr_description",
+            "federal_tax_rate",
+            "state_tax_rate",
+            "FICA_tax_rate",
+            "Tr_Year",
+        ],
+        as_index=False,
+    )["tr_amt"].sum()
+    offsetting_transactions_grouped.loc[
+        offsetting_transactions_grouped["tr_amt"] <= 0, "tr_amt"
+    ] = 0
+    offsetting_transactions_grouped.drop(columns=["Tr_Year"], inplace=True)
+
+    # (4) Append the non-offsetting and offsetting transactions together
+    df = pd.concat([non_offsetting_transactions, offsetting_transactions_grouped])
+
+    # (5) Calculate the deferred tax amount
+    df["deferred_tax_amount"] = df["tr_amt"] * (
+        df["federal_tax_rate"] + df["state_tax_rate"] + df["FICA_tax_rate"]
+    )
+
+    # (6) Fill in the column values for the deferred tax transactions
+    df["tr_init_date"] = agg_transactions["tr_close_date"].max()
+    df["tr_close_date"] = agg_transactions["tr_close_date"].max()
+    df["tr_description"] = "Deferred taxes"
+    df["tr_amt"] = df["deferred_tax_amount"]
+    df["tr_impacted_acc_1"] = "Deferred Taxes Payable"
+    df["tr_impacted_acc_1_sign"] = "[+ve]"
+    df["tr_impacted_acc_2"] = "Expense - Deferred Taxes (Est)"
+    df["tr_impacted_acc_2_sign"] = "[+ve]"
+
+    return df
