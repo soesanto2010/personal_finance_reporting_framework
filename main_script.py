@@ -53,8 +53,7 @@ default_start_date_for_deferred_tax_transactions = "2023-01-01 00:00:00"
 # end date for tracking expenses
 # (enter 'YYYY-MM-DD HH:MM:SS' to close on a specific(past) date; otherwise, enter
 # None to close on the current datetime)
-# default_end_date = None
-default_end_date = '2023-08-19 18:00:00'
+default_end_date = None
 
 default_timezone = "UTC"
 default_max_pull_retries = 5
