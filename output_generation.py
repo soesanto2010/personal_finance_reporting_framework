@@ -25,6 +25,7 @@ def output_upload_to_cloud(self):
 
     # (1) Set the publish date for the balance sheet dataset
     self.Acct_Level_Summary['publish_date'] = self.end_date
+    self.Acct_Level_Summary.reset_index(drop=True, inplace=True)
 
     # (2) Upload to BigQuery
     load_to_bigquery(self.Acct_Level_Summary, self.gcp_project, self.gcp_dataset, "tbl_"+self.output_publish_report+"_balance_sheet", "append")
