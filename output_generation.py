@@ -17,7 +17,7 @@ def generate_csv_outputs(self):
     self.securities.to_excel(writer, sheet_name="Security_valuations")
 
     # Close the Pandas Excel writer and output the Excel file.
-    writer.save()
+    writer.close()
 
     print("finish writing outputs locally")
 

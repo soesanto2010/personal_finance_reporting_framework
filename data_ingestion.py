@@ -163,8 +163,8 @@ class ingestion_pipeline(object):
         # (7) Keep only in-window transactions
         Transactions_relevant_timeframe = (
             self.Transactions_with_deferred_tax_statements[
-                self.Transactions_with_deferred_tax_statements["Tr_Date"]
-                <= self.end_date
+                pd.to_datetime(self.Transactions_with_deferred_tax_statements["Tr_Date"])
+                <= np.datetime64(self.end_date)
             ]
         )
 
