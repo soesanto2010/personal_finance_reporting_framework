@@ -72,7 +72,7 @@ default_gcp_project = "vsoesanto-gcp-finance-prod"
 default_gcp_dataset = "personal_finance"
 
 # Local path
-default_path = "C:\\Users\\feiya\\OneDrive\\Desktop\\Financial Management\\"
+default_path = "C:\\Users\\feiya\\Desktop\\Financial Management\\"
 default_filename = "Data Structure.xlsx"
 
 #####################################################################################

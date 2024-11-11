@@ -198,13 +198,13 @@ def get_account_level_balance_sheet(self):
             "acc_name",
         ],
         as_index=False,
-    )[
+    )[[
         "Baseline_Value",
         "Net_Change_From_Operations",
         "BV",
         "CB",
         "Net_Change_From_Market_Adjustment",
-        "MV",
+        "MV",]
     ].sum()
 
     # (7) Keep only rows with at least one non-NULL value in MV
