@@ -15,7 +15,7 @@ from util import load_to_bigquery
 # (Local) location of the file
 
 default_timezone = "UTC"
-default_path = "C:\\Users\\feiya\\OneDrive\\Desktop\\Financial Management\\"
+default_path = "C:\\Users\\feiya\\Desktop\\Financial Management\\"
 default_filename = "Data Structure.xlsx"
 sheet_list = [
     # (a) Expense-related data
