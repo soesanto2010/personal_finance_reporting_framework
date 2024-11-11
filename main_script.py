@@ -48,7 +48,7 @@ default_start_date = "2021-06-25 00:00:00"
 # Therefore, transactions from Jan 1 2022 is relevant
 # Example # 2: if we close on June 1 2023, the next tax filing is for 2023 income.
 # Therefore, transactions from Jan 1 2023 is relevant
-default_start_date_for_deferred_tax_transactions = "2023-01-01 00:00:00"
+default_start_date_for_deferred_tax_transactions = "2024-01-01 00:00:00"
 
 # end date for tracking expenses
 # (enter 'YYYY-MM-DD HH:MM:SS' to close on a specific(past) date; otherwise, enter
