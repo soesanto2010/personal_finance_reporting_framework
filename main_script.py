@@ -48,7 +48,7 @@ default_start_date = "2021-06-25 00:00:00"
 # Therefore, transactions from Jan 1 2022 is relevant
 # Example # 2: if we close on June 1 2023, the next tax filing is for 2023 income.
 # Therefore, transactions from Jan 1 2023 is relevant
-default_start_date_for_deferred_tax_transactions = "2024-01-01 00:00:00"
+default_start_date_for_deferred_tax_transactions = "2025-01-01 00:00:00"
 
 # end date for tracking expenses
 # (enter 'YYYY-MM-DD HH:MM:SS' to close on a specific(past) date; otherwise, enter
@@ -59,8 +59,8 @@ default_timezone = "UTC"
 default_max_pull_retries = 5
 
 # default type of price for measuring the value of securities. Options include
-# {Open, High, Low, Close, Adj Close}
-default_security_price_metric = "Adj Close"
+# {Open, High, Low, Close}
+default_security_price_metric = "Close"
 
 # default source for datasets is 'cloud', but 'local' can be used during dev ops
 default_data_input_source = "cloud"

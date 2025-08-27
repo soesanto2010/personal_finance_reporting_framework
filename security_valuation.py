@@ -61,7 +61,8 @@ def get_market_values_on_closing_date(self):
     for i in list(self.securities["acc_security_ticker"]):
         (i_mv, i_mv_pull_date, i_mv_source_type) = get_security_value_using_yfinance(
             ticker_key=i,
-            date_key=self.end_date,
+            date_key_start=self.end_date,
+            date_key_end=self.end_date + pd.Timedelta(days=1),
             max_retries=self.max_pull_retries,
             price_metric=self.security_price_metric,
         )
@@ -138,7 +139,7 @@ def get_cost_basis_on_closing_date(self):
         self.securities.loc[self.securities["acc_name"] == security_account, "CB"] = CB
 
 
-def get_security_value_using_yfinance(ticker_key, date_key, max_retries, price_metric):
+def get_security_value_using_yfinance(ticker_key, date_key_start, date_key_end, max_retries, price_metric):
 
     """The core function in yfinance pulls security values based on the (1) ticker
     and (2) datetime as inputs. If the function fails (for example, because the day
@@ -146,10 +147,11 @@ def get_security_value_using_yfinance(ticker_key, date_key, max_retries, price_m
 
     # (1) Initial parameters
     day_decrement = 0
-    updated_date = date_key - pd.Timedelta(days=day_decrement)
+    updated_date = date_key_start - pd.Timedelta(days=day_decrement)
+    updated_date_2 = date_key_end - pd.Timedelta(days=day_decrement)
 
     # (2) Initial database pull
-    df = yf.download(tickers=ticker_key, start=updated_date, end=updated_date)
+    df = yf.download(tickers=ticker_key, start=updated_date, end=updated_date_2)
 
     # (3) Repull database by trying previous day if fails (max retries dictated by
     # default_max_yfinance_pull_retries)
@@ -161,17 +163,18 @@ def get_security_value_using_yfinance(ticker_key, date_key, max_retries, price_m
             + str(updated_date)
         )
         day_decrement = day_decrement + 1
-        updated_date = date_key - pd.Timedelta(days=day_decrement)
-        df = yf.download(tickers=ticker_key, start=updated_date, end=updated_date)
+        updated_date = date_key_start - pd.Timedelta(days=day_decrement)
+        updated_date_2 = date_key_end - pd.Timedelta(days=day_decrement)
+        df = yf.download(tickers=ticker_key, start=updated_date, end=updated_date_2)
 
     # (4) Pull out the security value of the price metric (price metric dictated by
     # default_security_price_metric)
-    if date_key == updated_date:
-        security_value = list(df[price_metric])[0]
+    if date_key_start == updated_date:
+        security_value = list(df[price_metric][ticker_key])[0]
         print("Successful value pull for " + ticker_key + " on target closing date")
-        return security_value, date_key, "exact"
+        return security_value, date_key_start, "exact"
     elif len(df) > 0:
-        security_value = list(df[price_metric])[0]
+        security_value = list(df[price_metric][ticker_key])[0]
         print("Alternative value pull for " + ticker_key + " on " + str(updated_date))
         return security_value, updated_date, "est based on prev close"
     else:
@@ -183,4 +186,4 @@ def get_security_value_using_yfinance(ticker_key, date_key, max_retries, price_m
             + str(max_retries)
             + " tries"
         )
-        return security_value, date_key, "fallback"
+        return security_value, date_key_start, "fallback"

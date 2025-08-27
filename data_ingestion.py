@@ -148,14 +148,16 @@ class ingestion_pipeline(object):
             .dt.isocalendar()
             .week
         )
-        self.Transactions_with_deferred_tax_statements[
-            "Tr_Month"
-        ] = self.Transactions_with_deferred_tax_statements["tr_close_date"].dt.month
-        self.Transactions_with_deferred_tax_statements["Tr_Year"] = (
-            self.Transactions_with_deferred_tax_statements["tr_close_date"]
-            .dt.isocalendar()
-            .year
-        )
+        # NEW CODE to get MBR period metrics
+        self.Transactions_with_deferred_tax_statements['tr_close_date'] = pd.to_datetime(
+            self.Transactions_with_deferred_tax_statements["tr_close_date"], format='%m/%d/%y')
+        self.Transactions_with_deferred_tax_statements["MBR_TS_Month"] = self.Transactions_with_deferred_tax_statements[
+            'tr_close_date'].dt.strftime('%Y-%m-01')
+        self.Transactions_with_deferred_tax_statements["Tr_Month"] = pd.to_datetime(
+            self.Transactions_with_deferred_tax_statements["MBR_TS_Month"]).dt.month
+        self.Transactions_with_deferred_tax_statements["Tr_Year"] = pd.to_datetime(
+            self.Transactions_with_deferred_tax_statements["MBR_TS_Month"]).dt.year
+
         self.Transactions_with_deferred_tax_statements["Tr_Date"] = pd.to_datetime(
             self.Transactions_with_deferred_tax_statements["tr_close_date"]
         ).dt.date
