@@ -58,21 +58,34 @@ def get_market_values_on_closing_date(self):
     """
 
     # (1) Pull from yfinance
-    for i in list(self.securities["acc_security_ticker"]):
-        (i_mv, i_mv_pull_date, i_mv_source_type) = get_security_value_using_yfinance(
-            ticker_key=i,
-            date_key_start=self.end_date,
-            date_key_end=self.end_date + pd.Timedelta(days=1),
-            max_retries=self.max_pull_retries,
-            price_metric=self.security_price_metric,
-        )
+    #ticker_list = list(self.securities["acc_security_ticker"])
+    ticker_list = list(self.securities[self.securities['acc_sub_type'].isin(['ETF','Stocks','Currency'])]['acc_security_ticker'].unique())
+    t0 = self.end_date-pd.Timedelta(days=3)
+    tf = self.end_date+pd.Timedelta(days=1)
+    price_database = yf.download(
+        tickers=ticker_list,
+        start=t0,
+        end=tf,  # one day after
+        progress=False
+    )
+    price_database.to_csv('price_database.csv')
+    max_available_date = price_database.index.max()
+    for i in ticker_list:
+        try:
+            i_mv = price_database.loc[max_available_date, ('Close', i)]
+        except KeyError:
+            i_mv = None
+    # for i in list(self.securities["acc_security_ticker"]):
+    #     (i_mv, i_mv_pull_date, i_mv_source_type) = get_security_value_using_yfinance(
+    #         ticker_key=i,
+    #         date_key_start=self.end_date,
+    #         date_key_end=self.end_date + pd.Timedelta(days=1),
+    #         max_retries=self.max_pull_retries,
+    #         price_metric=self.security_price_metric,
+    #     )
         self.securities.loc[self.securities["acc_security_ticker"] == i, "mv"] = i_mv
-        self.securities.loc[
-            self.securities["acc_security_ticker"] == i, "mv_pull_date"
-        ] = i_mv_pull_date
-        self.securities.loc[
-            self.securities["acc_security_ticker"] == i, "mv_source_type"
-        ] = i_mv_source_type
+        self.securities.loc[self.securities["acc_security_ticker"] == i, "mv_pull_date"] = max_available_date
+        self.securities.loc[self.securities["acc_security_ticker"] == i, "mv_source_type"] = "Exact"
 
     # (2) Reformat the pull date to date (so that it can be saved into CSV)
     self.securities["mv_pull_date"] = pd.to_datetime(
@@ -80,6 +93,7 @@ def get_market_values_on_closing_date(self):
     ).dt.date
 
     # (3) Use the fallback if the market value per share is not successfully pulled
+    self.securities.loc[self.securities["mv"].isna(), "mv_source_type"] = "Fallback"
     self.securities.loc[self.securities["mv"].isna(), "mv"] = self.securities[
         "acc_security_value_fallback"
     ]
@@ -94,6 +108,13 @@ def get_market_values_on_closing_date(self):
     self.securities["MV"] = self.securities["MV_pre_commisions"] * (
         1 - self.securities["acc_security_sale_commision_percentage"]
     )
+
+    # Stop the script if the stock values are not being pulled correctly
+    if self.securities[self.securities['acc_security_ticker']=='SPY']['mv'][0] == 0:
+        print('Stopping script now since some of the stock values are zero')
+        exit()
+    else:
+        pass
 
 
 def get_cost_basis_on_closing_date(self):
@@ -139,51 +160,51 @@ def get_cost_basis_on_closing_date(self):
         self.securities.loc[self.securities["acc_name"] == security_account, "CB"] = CB
 
 
-def get_security_value_using_yfinance(ticker_key, date_key_start, date_key_end, max_retries, price_metric):
-
-    """The core function in yfinance pulls security values based on the (1) ticker
-    and (2) datetime as inputs. If the function fails (for example, because the day
-    falls on a market close), we retry based on the previous date"""
-
-    # (1) Initial parameters
-    day_decrement = 0
-    updated_date = date_key_start - pd.Timedelta(days=day_decrement)
-    updated_date_2 = date_key_end - pd.Timedelta(days=day_decrement)
-
-    # (2) Initial database pull
-    df = yf.download(tickers=ticker_key, start=updated_date, end=updated_date_2)
-
-    # (3) Repull database by trying previous day if fails (max retries dictated by
-    # default_max_yfinance_pull_retries)
-    while len(df) == 0 and day_decrement <= max_retries:
-        print(
-            "Unable to retrieve the security value of "
-            + ticker_key
-            + " on "
-            + str(updated_date)
-        )
-        day_decrement = day_decrement + 1
-        updated_date = date_key_start - pd.Timedelta(days=day_decrement)
-        updated_date_2 = date_key_end - pd.Timedelta(days=day_decrement)
-        df = yf.download(tickers=ticker_key, start=updated_date, end=updated_date_2)
-
-    # (4) Pull out the security value of the price metric (price metric dictated by
-    # default_security_price_metric)
-    if date_key_start == updated_date:
-        security_value = list(df[price_metric][ticker_key])[0]
-        print("Successful value pull for " + ticker_key + " on target closing date")
-        return security_value, date_key_start, "exact"
-    elif len(df) > 0:
-        security_value = list(df[price_metric][ticker_key])[0]
-        print("Alternative value pull for " + ticker_key + " on " + str(updated_date))
-        return security_value, updated_date, "est based on prev close"
-    else:
-        security_value = None
-        print(
-            "Pull still unsuccessful for "
-            + ticker_key
-            + " after "
-            + str(max_retries)
-            + " tries"
-        )
-        return security_value, date_key_start, "fallback"
+# def get_security_value_using_yfinance(ticker_key, date_key_start, date_key_end, max_retries, price_metric):
+#
+#     """The core function in yfinance pulls security values based on the (1) ticker
+#     and (2) datetime as inputs. If the function fails (for example, because the day
+#     falls on a market close), we retry based on the previous date"""
+#
+#     # (1) Initial parameters
+#     day_decrement = 0
+#     updated_date = date_key_start - pd.Timedelta(days=day_decrement)
+#     updated_date_2 = date_key_end - pd.Timedelta(days=day_decrement)
+#
+#     # (2) Initial database pull
+#     df = yf.download(tickers=ticker_key, start=updated_date, end=updated_date_2)
+#
+#     # (3) Repull database by trying previous day if fails (max retries dictated by
+#     # default_max_yfinance_pull_retries)
+#     while len(df) == 0 and day_decrement <= max_retries:
+#         print(
+#             "Unable to retrieve the security value of "
+#             + ticker_key
+#             + " on "
+#             + str(updated_date)
+#         )
+#         day_decrement = day_decrement + 1
+#         updated_date = date_key_start - pd.Timedelta(days=day_decrement)
+#         updated_date_2 = date_key_end - pd.Timedelta(days=day_decrement)
+#         df = yf.download(tickers=ticker_key, start=updated_date, end=updated_date_2)
+#
+#     # (4) Pull out the security value of the price metric (price metric dictated by
+#     # default_security_price_metric)
+#     if date_key_start == updated_date:
+#         security_value = list(df[price_metric][ticker_key])[0]
+#         print("Successful value pull for " + ticker_key + " on target closing date")
+#         return security_value, date_key_start, "exact"
+#     elif len(df) > 0:
+#         security_value = list(df[price_metric][ticker_key])[0]
+#         print("Alternative value pull for " + ticker_key + " on " + str(updated_date))
+#         return security_value, updated_date, "est based on prev close"
+#     else:
+#         security_value = None
+#         print(
+#             "Pull still unsuccessful for "
+#             + ticker_key
+#             + " after "
+#             + str(max_retries)
+#             + " tries"
+#         )
+#         return security_value, date_key_start, "fallback"
